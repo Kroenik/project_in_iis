@@ -25,10 +25,7 @@ def get_volunteer_information(runtime: ToolRuntime[Context]):
     Returns:
         A dictionary containing the volunteer's information.
     """
-    load_dotenv()
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
-    supabase_client = supabase.create_client(url, key)
+    supabase_client = runtime.context.supabase
     print(
         f"Getting volunteer information for user ID: {runtime.context.user_id}"
     )
@@ -53,10 +50,7 @@ def get_opportunities_for_volunteer(runtime: ToolRuntime[Context]):
     """Retrieve the best matches for the currently logged-in volunteer, based
     on their profile and preferences"""
     print(f"Getting matches for volunteer ID: {runtime.context.user_id}")
-    load_dotenv()
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
-    supabase_client = supabase.create_client(url, key)
+    supabase_client = runtime.context.supabase
     profile = get_profile(runtime.context.user_id)
     opportunities = get_opportunities()
     matches = []
@@ -128,9 +122,7 @@ def update_volunteer_profile(
     if column not in column_names:
         return f"Identified column {column} is not valid. Please try again."
 
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
-    supabase_client = supabase.create_client(url, key)
+    supabase_client = runtime.context.supabase
     # arrays
     if column in ["skills", "languages"]:
         current_col_vals = (
@@ -213,15 +205,12 @@ def create_volunteer_profile(
 
     openai = OpenAI(api_key=os.environ.get("OPENAI_TOKEN"))
     # TODO: profile preference soll ein vom model erstellte summary sein
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
-    supabase_client = supabase.create_client(url, key)
+    supabase_client = runtime.context.supabase
 
     profile.preference_embedding = get_embedding(openai, profile.preference)
-
+    profile = json.loads(profile.model_dump_json())
+    profile["user_id"] = runtime.context.user_id
     result = (
-        supabase_client.table("volunteer_profiles")
-        .insert(json.loads(profile.model_dump_json()))
-        .execute()
+        supabase_client.table("volunteer_profiles").insert(profile).execute()
     )
     return f"Created volunteer profile for user ID: {runtime.context.user_id} with the following data: {result.data[0]}"

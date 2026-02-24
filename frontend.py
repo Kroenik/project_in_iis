@@ -3,11 +3,27 @@ from agent import get_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from custom_classes import Context
 from langchain_openai import ChatOpenAI
+from supabase import create_client
+from auth import require_auth, logout
 
+require_auth()
 
+st.sidebar.button("Logout", on_click=logout)
 st.title("Volunteer Finder")
 
 api_key = st.secrets["OPENAI_API_KEY"]
+
+
+@st.cache_resource
+def get_supabase_client():
+    client = create_client(
+        st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"]
+    )
+    client.auth.set_session(
+        st.session_state.session.access_token,
+        st.session_state.session.refresh_token,
+    )
+    return client
 
 
 @st.cache_resource
@@ -19,8 +35,9 @@ def load_agent():
     return get_agent(model, checkpointer, Context), checkpointer
 
 
-config = {"configurable": {"thread_id": "1"}}
-context = Context(user_id=2)
+supabase_client = get_supabase_client()
+config = {"configurable": {"thread_id": str(st.session_state.user.id)}}
+context = Context(user_id=st.session_state.user.id, supabase=supabase_client)
 agent, checkpointer = load_agent()
 
 # Initialize chat history

@@ -1,0 +1,7 @@
+supabase
+langchain
+langchain-openai
+openai
+pydantic
+streamlit
+altair<5

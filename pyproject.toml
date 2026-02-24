@@ -11,11 +11,12 @@ dependencies = [
     "langchain>=1.2.10",
     "langchain-openai>=1.1.10",
     "openai>=2.15.0",
-    "pandas>=3.0.0",
     "pydantic>=2.12.5",
     "scikit-learn>=1.8.0",
+    "streamlit>=1.54.0",
     "supabase>=2.27.2",
     "torch>=2.9.1",
     "transformers>=4.57.6",
     "uvicorn>=0.40.0",
+    "altair<5",
 ]
