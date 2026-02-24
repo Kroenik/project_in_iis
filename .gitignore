@@ -1,3 +1,4 @@
 .env
 __pycache__/
 notes.md
+.streamlit/secrets.toml
