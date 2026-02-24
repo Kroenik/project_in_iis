@@ -158,6 +158,7 @@ def update_volunteer_profile(
 class VolunteerProfile(BaseModel):
     # Class describing a volunteer profile
     city: str
+    name: str
     zip_code: int
     radius: int = Field(description="Radius in kilometers")
     availability: dict[str, str] = Field(
@@ -184,9 +185,8 @@ class VolunteerProfile(BaseModel):
         description="Whether the user wants to commit to a recurring schedule or just one-time events"
     )
     preference: str = Field(
-        description="""A short description and summary from you about the
-        user's preferences for volunteering. This will be used to find the best
-        matches for the user."""
+        description="""Use this field as a kind of search term and summary of 
+        what the user is looking for at the moment. It will be used to create an embedding for the user's profile."""
     )
     preference_embedding: list[float] | None = Field(
         default=None, exclude=True
