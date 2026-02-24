@@ -4,9 +4,8 @@ from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from openai import OpenAI
 import supabase
-from backend.aux import get_embedding
+from aux import get_embedding, get_profile, get_opportunities
 from custom_classes import Context
-from backend.app import get_profile, get_opportunities
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 from langchain_openai import ChatOpenAI
