@@ -1,0 +1,21 @@
+[project]
+name = "project-in-iis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.131.0",
+    "ipykernel>=7.1.0",
+    "langchain>=1.2.10",
+    "langchain-openai>=1.1.10",
+    "openai>=2.15.0",
+    "pandas>=3.0.0",
+    "pydantic>=2.12.5",
+    "scikit-learn>=1.8.0",
+    "supabase>=2.27.2",
+    "torch>=2.9.1",
+    "transformers>=4.57.6",
+    "uvicorn>=0.40.0",
+]
