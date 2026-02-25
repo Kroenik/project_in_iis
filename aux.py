@@ -21,10 +21,7 @@ def get_embedding(client: OpenAI, text: str) -> list[float]:
     return embedding
 
 
-def get_profile(profile_id: int):
-    url: str = os.environ.get("SUPABASE_URL")
-    key: str = os.environ.get("SUPABASE_KEY")
-    client = supabase.create_client(url, key)
+def get_profile(client: supabase.Client, profile_id: int):
     res = (
         client.table("volunteer_profiles")
         .select("*")
