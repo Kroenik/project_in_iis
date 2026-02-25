@@ -29,14 +29,14 @@ def get_supabase_client():
 @st.cache_resource
 def load_agent():
     model = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0.5, timeout=10, max_tokens=1000
+        model="gpt-4o-mini", temperature=0.5, timeout=30, max_tokens=1000
     )
     checkpointer = InMemorySaver()
     return get_agent(model, checkpointer, Context), checkpointer
 
 
 supabase_client = get_supabase_client()
-config = {"configurable": {"thread_id": str(st.session_state.user.id)}}
+config = {"configurable": {"thread_id": st.session_state.user.id}}
 context = Context(user_id=st.session_state.user.id, supabase=supabase_client)
 agent, checkpointer = load_agent()
 
