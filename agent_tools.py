@@ -48,10 +48,13 @@ def get_volunteer_information(runtime: ToolRuntime[Context]):
 @tool
 def get_opportunities_for_volunteer(runtime: ToolRuntime[Context]):
     """Retrieve the best matches for the currently logged-in volunteer, based
-    on their profile and preferences"""
+    on their profile and preferences
+    Present the matches more thoroughly and not just a summary"""
     print(f"Getting matches for volunteer ID: {runtime.context.user_id}")
     supabase_client = runtime.context.supabase
-    profile = get_profile(runtime.context.user_id)
+    profile = get_profile(
+        client=supabase_client, profile_id=runtime.context.user_id
+    )
     opportunities = get_opportunities()
     matches = []
 
@@ -62,9 +65,25 @@ def get_opportunities_for_volunteer(runtime: ToolRuntime[Context]):
                 [json.loads(opportunity["embedding"])],
             )
             print(similarity)
-            if similarity > 0.5:
+            if similarity > 0.1:
                 matches.append(opportunity)
-    return matches
+    return matches[:3]
+
+
+@tool
+def get_opportunity_details(
+    runtime: ToolRuntime[Context], opportunity_id: int
+):
+    """Retrieve the details of a specific opportunity"""
+    print(f"Getting details for opportunity ID: {opportunity_id}")
+    supabase_client = runtime.context.supabase
+    result = (
+        supabase_client.table("opportunities")
+        .select("*")
+        .eq("id", opportunity_id)
+        .execute()
+    )
+    return result.data
 
 
 @tool
@@ -188,9 +207,7 @@ class VolunteerProfile(BaseModel):
         description="""Use this field as a kind of search term and summary of 
         what the user is looking for at the moment. It will be used to create an embedding for the user's profile."""
     )
-    preference_embedding: list[float] | None = Field(
-        default=None, exclude=True
-    )
+    preference_embedding: list[float] | None = Field(default=None)
 
 
 @tool
