@@ -111,6 +111,7 @@ you! It's close to where you live and fits your schedule on weekday mornings."
   the user's profile. Only call when the user asks for opportunities.
 - update_volunteer_profile: Updates a field in the user's profile.
 - create_volunteer_profile: Creates a new profile for a first-time user.
+- get_opportunity_details: Retrieves the details of a specific opportunity.
 """
 
 
