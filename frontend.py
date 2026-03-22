@@ -1,3 +1,4 @@
+from langgraph.graph.state import CompiledStateGraph
 import streamlit as st
 from agent import get_agent
 from langgraph.checkpoint.memory import InMemorySaver
@@ -99,6 +100,25 @@ def _get_supabase_client(secrets: dict[str, str]) -> Client:
     return st.session_state.supabase_client
 
 
+def _load_agent(openai_api_key: str) -> CompiledStateGraph:
+    model = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0.3,
+        timeout=30,
+        max_tokens=1000,
+        max_retries=3,
+        api_key=openai_api_key,
+    )
+    checkpointer = InMemorySaver()
+    st.session_state.agent_runtime = {
+        "agent": get_agent(
+            model=model, checkpointer=checkpointer, context=Context
+        ),
+        "checkpointer": checkpointer,
+    }
+    return st.session_state.agent_runtime["agent"]
+
+
 def run_app() -> None:
     try:
         secrets = _ensure_runtime_secrets()
@@ -117,21 +137,11 @@ def run_app() -> None:
         user_id=st.session_state.user.id, supabase=supabase_client
     )
     config = {"configurable": {"thread_id": st.session_state.user.id}}
+    agent = _load_agent(secrets["OPENAI_API_KEY"])
 
 
 run_app()
 
-
-@st.cache_resource
-def load_agent():
-    model = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0.5, timeout=30, max_tokens=1000
-    )
-    checkpointer = InMemorySaver()
-    return get_agent(model, checkpointer, Context), checkpointer
-
-
-agent, checkpointer = load_agent()
 
 # # Display chat messages from history on app rerun
 # for message in st.session_state.messages:
