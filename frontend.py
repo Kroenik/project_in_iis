@@ -9,9 +9,6 @@ from auth import require_auth, logout
 require_auth()
 
 
-st.title("Volunteer Finder")
-
-
 def _get_secret(name: str) -> str:
     value = st.secrets.get(name)
     if not value:
@@ -50,6 +47,34 @@ def _display_side_bar() -> None:
     st.sidebar.success("Logged in as " + st.session_state.user.email)
     st.sidebar.button("Logout", on_click=logout, use_container_width=True)
     st.sidebar.divider()
+
+
+def _display_intro_section() -> None:
+    st.title("Find your next volunteering opportunity")
+    st.caption(
+        "Tell me what you want to do and"
+        "I will help you find the perfect opportunity."
+    )
+    st.write("- `Weekend opportunities in Linz`")
+    st.write("- `I have IT skills and about 8 hours per week`")
+    st.write("- `Help me create my profile`")
+    st.write("- `I am an NGO coordinator and want to post a new opportunity`")
+
+
+def _display_quick_actions() -> str | None:
+    st.write("Quick start:")
+    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
+
+    if col1.button("Find weekend options", use_container_width=True):
+        return "Show me volunteering opportunities on weekends near Linz."
+    if col2.button("Create my profile", use_container_width=True):
+        return "Please help me create my volunteer profile."
+    if col3.button("I have IT skills", use_container_width=True):
+        return "I have IT skills and around 8 hours per week. What matches me?"
+    if col4.button("Post an opportunity", use_container_width=True):
+        return "I am an NGO coordinator and want to post a new volunteering opportunity."
+    return None
 
 
 api_key = st.secrets["OPENAI_API_KEY"]
@@ -116,6 +141,9 @@ def run_app() -> None:
 
     _initialize_chat()
     _display_side_bar()
+    _display_intro_section()
+    quick_action = _display_quick_actions()
+    st.divider()
 
 
 run_app()
