@@ -1,9 +1,7 @@
+from typing import Any
 from langchain.tools import tool, ToolRuntime
 import os
-from dotenv import load_dotenv
-from langchain_core.prompts import ChatPromptTemplate
 from openai import OpenAI
-import supabase
 from aux import get_embedding, get_profile, get_opportunities
 from custom_classes import Context
 from sklearn.metrics.pairwise import cosine_similarity
@@ -11,6 +9,146 @@ import json
 from langchain_openai import ChatOpenAI
 from datetime import date
 from pydantic import BaseModel, Field
+import re
+
+
+PROFILE_ALIASES: dict[str, list[str]] = {
+    "name": ["name", "name_text", "full_name", "full_name_text"],
+    "contact": ["contact", "contact_text", "email", "email_text"],
+    "city": ["city", "city_text"],
+    "zip_code": ["zip_code", "zip_int", "zip"],
+    "radius": ["radius", "radius_int"],
+    "availability": ["availability", "availability_json"],
+    "skills": ["skills", "skills_json"],
+    "languages": ["languages", "languages_text"],
+    "h_week": ["h_week", "h_week_int", "hours_week", "hours_week_int"],
+    "start_date": ["start_date"],
+    "end_date": ["end_date"],
+    "recurring": ["recurring", "recurring_bool"],
+    "preference": ["preference", "preference_text", "preference_summary"],
+    "preference_embedding": ["preference_embedding"],
+}
+
+
+def _coalesce(row: dict[str, Any], aliases: list[str]) -> Any:
+    for key in aliases:
+        if key in row and row[key] is not None:
+            return row[key]
+    return None
+
+
+def _to_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value).strip()
+    return int(text) if text.isdigit() else None
+
+
+def _to_bool(value: Any) -> bool | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {"true", "yes", "y", "ja", "1", "recurring", "regular"}:
+        return True
+    if text in {"false", "no", "n", "nein", "0", "one-time", "one time"}:
+        return False
+    return None
+
+
+def _safe_profile_lookup(
+    client: Any, user_id: str | int
+) -> dict[str, Any] | None:
+    user_candidates: list[str | int] = [user_id]
+    if isinstance(user_id, str) and user_id.isdigit():
+        user_candidates.append(int(user_id))
+
+    for candidate in user_candidates:
+        try:
+            result = (
+                client.table("volunteer_profiles")
+                .select("*")
+                .eq("user_id", candidate)
+                .limit(1)
+                .execute()
+            )
+            if result.data:
+                return result.data[0]
+        except Exception:
+            continue
+    return None
+
+
+def _to_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return []
+        if stripped.startswith("[") and stripped.endswith("]"):
+            try:
+                data = json.loads(stripped)
+                if isinstance(data, list):
+                    return [
+                        str(item).strip() for item in data if str(item).strip()
+                    ]
+            except json.JSONDecodeError:
+                pass
+        return [
+            part.strip()
+            for part in re.split(r"[,;/\n]", stripped)
+            if part.strip()
+        ]
+    return [str(value).strip()]
+
+
+def _to_dict(value: Any) -> dict[str, str]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return {str(k): str(v) for k, v in value.items()}
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return {}
+        try:
+            data = json.loads(stripped)
+            if isinstance(data, dict):
+                return {str(k): str(v) for k, v in data.items()}
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+def _normalize_profile(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": _coalesce(row, PROFILE_ALIASES["name"]),
+        "contact": _coalesce(row, PROFILE_ALIASES["contact"]),
+        "city": _coalesce(row, PROFILE_ALIASES["city"]),
+        "zip_code": _to_int(_coalesce(row, PROFILE_ALIASES["zip_code"])),
+        "radius": _to_int(_coalesce(row, PROFILE_ALIASES["radius"])),
+        "availability": _to_dict(
+            _coalesce(row, PROFILE_ALIASES["availability"])
+        ),
+        "skills": _to_list(_coalesce(row, PROFILE_ALIASES["skills"])),
+        "languages": _to_list(_coalesce(row, PROFILE_ALIASES["languages"])),
+        "h_week": _to_int(_coalesce(row, PROFILE_ALIASES["h_week"])),
+        "start_date": _coalesce(row, PROFILE_ALIASES["start_date"]),
+        "end_date": _coalesce(row, PROFILE_ALIASES["end_date"]),
+        "recurring": _to_bool(_coalesce(row, PROFILE_ALIASES["recurring"])),
+        "preference": _coalesce(row, PROFILE_ALIASES["preference"]),
+        "preference_embedding": _coalesce(
+            row, PROFILE_ALIASES["preference_embedding"]
+        ),
+    }
 
 
 @tool
