@@ -8,7 +8,7 @@ from auth import require_auth, logout
 
 require_auth()
 
-st.sidebar.button("Logout", on_click=logout)
+
 st.title("Volunteer Finder")
 
 
@@ -44,6 +44,14 @@ def _initialize_chat() -> None:
         ]
 
 
+def _display_side_bar() -> None:
+    st.sidebar.title("ConVolunteer")
+    st.sidebar.caption("Conversational search for volunteering opportunities")
+    st.sidebar.success("Logged in as " + st.session_state.user.email)
+    st.sidebar.button("Logout", on_click=logout, use_container_width=True)
+    st.sidebar.divider()
+
+
 api_key = st.secrets["OPENAI_API_KEY"]
 
 
@@ -73,34 +81,30 @@ config = {"configurable": {"thread_id": st.session_state.user.id}}
 context = Context(user_id=st.session_state.user.id, supabase=supabase_client)
 agent, checkpointer = load_agent()
 
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# # Display chat messages from history on app rerun
+# for message in st.session_state.messages:
+#     with st.chat_message(message["role"]):
+#         st.markdown(message["content"])
 
-# Display chat messages from history on app rerun
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# if prompt := st.chat_input("Talk to me to find volunteering opportunities!"):
+#     agent_input = {"messages": [{"role": "user", "content": prompt}]}
+#     st.session_state.messages.append({"role": "user", "content": prompt})
+#     # Display user message in chat message container
+#     with st.chat_message("user"):
+#         st.markdown(prompt)
 
-if prompt := st.chat_input("Talk to me to find volunteering opportunities!"):
-    agent_input = {"messages": [{"role": "user", "content": prompt}]}
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    # Display user message in chat message container
-    with st.chat_message("user"):
-        st.markdown(prompt)
+#     # Add user message to chat history
 
-    # Add user message to chat history
+#     # Display assistant response in chat message container
+#     with st.chat_message("assistant"):
+#         result = agent.invoke(agent_input, config=config, context=context)
+#         response = result["structured_response"].response
 
-    # Display assistant response in chat message container
-    with st.chat_message("assistant"):
-        result = agent.invoke(agent_input, config=config, context=context)
-        response = result["structured_response"].response
+#         st.markdown(response)
 
-        st.markdown(response)
-
-    st.session_state.messages.append(
-        {"role": "assistant", "content": response}
-    )
+#     st.session_state.messages.append(
+#         {"role": "assistant", "content": response}
+#     )
 
 
 def run_app() -> None:
@@ -109,3 +113,9 @@ def run_app() -> None:
     except RuntimeError as e:
         st.error(str(e))
         st.stop()
+
+    _initialize_chat()
+    _display_side_bar()
+
+
+run_app()
