@@ -78,6 +78,12 @@ def _display_quick_actions() -> str | None:
     return None
 
 
+def _display_message_history() -> None:
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+
 def _get_supabase_client(secrets: dict[str, str]) -> Client:
     access_token = st.session_state.session.access_token
     refresh_token = st.session_state.session.refresh_token
@@ -138,6 +144,7 @@ def run_app() -> None:
     )
     config = {"configurable": {"thread_id": st.session_state.user.id}}
     agent = _load_agent(secrets["OPENAI_API_KEY"])
+    _display_message_history()
 
 
 run_app()
