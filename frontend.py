@@ -8,21 +8,15 @@ from langchain_openai import ChatOpenAI
 from supabase import create_client, Client
 from auth import require_auth, logout
 import re
+from aux import get_secret
 
 require_auth()
 
 
-def _get_secret(name: str) -> str:
-    value = st.secrets.get(name)
-    if not value:
-        raise RuntimeError(f"Required secret {name} is not set")
-    return value
-
-
 def _ensure_runtime_secrets() -> dict[str, str]:
-    openai_api_key = _get_secret("OPENAI_API_KEY")
-    supabase_url = _get_secret("SUPABASE_URL")
-    supabase_key = _get_secret("SUPABASE_KEY")
+    openai_api_key = get_secret("OPENAI_API_KEY")
+    supabase_url = get_secret("SUPABASE_URL")
+    supabase_key = get_secret("SUPABASE_KEY")
     return {
         "OPENAI_API_KEY": openai_api_key,
         "SUPABASE_URL": supabase_url,

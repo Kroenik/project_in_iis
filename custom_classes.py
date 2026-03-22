@@ -4,5 +4,5 @@ from supabase import Client
 
 @dataclass
 class Context:
-    user_id: int
+    user_id: str | int
     supabase: Client

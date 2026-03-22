@@ -1,6 +1,7 @@
 from openai import OpenAI
 import os
 import supabase
+import streamlit as st
 
 
 def get_embedding(client: OpenAI, text: str) -> list[float]:
@@ -37,3 +38,10 @@ def get_opportunities():
     client = supabase.create_client(url, key)
     res = client.table("opportunities").select("*").execute()
     return res.data
+
+
+def get_secret(name: str) -> str:
+    value = st.secrets.get(name)
+    if not value:
+        raise RuntimeError(f"Required secret {name} is not set")
+    return value
