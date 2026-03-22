@@ -3,7 +3,7 @@ from agent import get_agent
 from langgraph.checkpoint.memory import InMemorySaver
 from custom_classes import Context
 from langchain_openai import ChatOpenAI
-from supabase import create_client
+from supabase import create_client, Client
 from auth import require_auth, logout
 
 require_auth()
@@ -77,19 +77,49 @@ def _display_quick_actions() -> str | None:
     return None
 
 
-api_key = st.secrets["OPENAI_API_KEY"]
+def _get_supabase_client(secrets: dict[str, str]) -> Client:
+    access_token = st.session_state.session.access_token
+    refresh_token = st.session_state.session.refresh_token
+    if (
+        "supabase_client" not in st.session_state
+        or st.session_state._supabase_access_token != access_token
+    ):
+        client = create_client(
+            secrets["SUPABASE_URL"], secrets["SUPABASE_KEY"]
+        )
+        try:
+            client.auth.set_session(access_token, refresh_token)
+        except Exception as e:
+            st.session_state.pop("session", None)
+            st.session_state.pop("user", None)
+            st.error(f"Failed to set session: {e}")
+            st.stop()
+        st.session_state.supabase_client = client
+        st.session_state._supabase_access_token = access_token
+    return st.session_state.supabase_client
 
 
-@st.cache_resource
-def get_supabase_client():
-    client = create_client(
-        st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"]
+def run_app() -> None:
+    try:
+        secrets = _ensure_runtime_secrets()
+    except RuntimeError as e:
+        st.error(str(e))
+        st.stop()
+
+    _initialize_chat()
+    _display_side_bar()
+    _display_intro_section()
+    quick_action = _display_quick_actions()
+    st.divider()
+
+    supabase_client = _get_supabase_client(secrets)
+    context = Context(
+        user_id=st.session_state.user.id, supabase=supabase_client
     )
-    client.auth.set_session(
-        st.session_state.session.access_token,
-        st.session_state.session.refresh_token,
-    )
-    return client
+    config = {"configurable": {"thread_id": st.session_state.user.id}}
+
+
+run_app()
 
 
 @st.cache_resource
@@ -101,9 +131,6 @@ def load_agent():
     return get_agent(model, checkpointer, Context), checkpointer
 
 
-supabase_client = get_supabase_client()
-config = {"configurable": {"thread_id": st.session_state.user.id}}
-context = Context(user_id=st.session_state.user.id, supabase=supabase_client)
 agent, checkpointer = load_agent()
 
 # # Display chat messages from history on app rerun
@@ -130,20 +157,3 @@ agent, checkpointer = load_agent()
 #     st.session_state.messages.append(
 #         {"role": "assistant", "content": response}
 #     )
-
-
-def run_app() -> None:
-    try:
-        _ensure_runtime_secrets()
-    except RuntimeError as e:
-        st.error(str(e))
-        st.stop()
-
-    _initialize_chat()
-    _display_side_bar()
-    _display_intro_section()
-    quick_action = _display_quick_actions()
-    st.divider()
-
-
-run_app()
