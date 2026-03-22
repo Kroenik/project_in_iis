@@ -30,6 +30,20 @@ def _ensure_runtime_secrets() -> dict[str, str]:
     }
 
 
+def _initialize_chat() -> None:
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {
+                "role": "assistant",
+                "content": "Hi and welcome to ConVolunteer! I can help you"
+                "create your volunteer profile, find matching volunteering"
+                "opportunities, explain next steps to contact the organization"
+                ".\n\n You can as well find examples above. Just let me know"
+                "and if needed I will simply ask follow ups.",
+            }
+        ]
+
+
 api_key = st.secrets["OPENAI_API_KEY"]
 
 
