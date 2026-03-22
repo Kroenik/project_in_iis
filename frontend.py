@@ -1,3 +1,4 @@
+from typing import Any
 from langgraph.graph.state import CompiledStateGraph
 import streamlit as st
 from agent import get_agent
@@ -6,6 +7,7 @@ from custom_classes import Context
 from langchain_openai import ChatOpenAI
 from supabase import create_client, Client
 from auth import require_auth, logout
+import re
 
 require_auth()
 
@@ -33,10 +35,10 @@ def _initialize_chat() -> None:
         st.session_state.messages = [
             {
                 "role": "assistant",
-                "content": "Hi and welcome to ConVolunteer! I can help you"
-                "create your volunteer profile, find matching volunteering"
+                "content": "Hi and welcome to ConVolunteer! I can help you "
+                "create your volunteer profile, find matching volunteering "
                 "opportunities, explain next steps to contact the organization"
-                ".\n\n You can as well find examples above. Just let me know"
+                ".\n\n You can as well find examples above. Just let me know "
                 "and if needed I will simply ask follow ups.",
             }
         ]
@@ -125,6 +127,80 @@ def _load_agent(openai_api_key: str) -> CompiledStateGraph:
     return st.session_state.agent_runtime["agent"]
 
 
+def _append_message(role: str, content: str) -> None:
+    st.session_state.messages.append({"role": role, "content": content})
+
+
+def _fallback_response(prompt: str) -> str | None:
+    token_count = len(re.findall(r"\w+", prompt))
+    if token_count >= 2:
+        return None
+    return (
+        "It seems like your message is too short. Please provide "
+        "more details\n\n"
+        "For example: your city, available day/time, or skill."
+    )
+
+
+def _invoke_agent(
+    prompt: str,
+    agent: Any,
+    context: Context,
+    config: dict[str, Any],
+) -> str:
+    fallback = _fallback_response(prompt)
+    if fallback is not None:
+        return fallback
+
+    with st.status("Processing your request...") as status:
+        status.update(label="Understanding your request...", state="running")
+        try:
+            result = agent.invoke(
+                {"messages": [{"role": "user", "content": prompt}]},
+                config=config,
+                context=context,
+            )
+            structured = result.get("structured_response")
+            response = getattr(structured, "response", None)
+            if response and str(response).strip():
+                status.update(label="Done", state="complete")
+                return str(response)
+            status.update(label="Done", state="complete")
+            return (
+                "I could not generate a full answer yet. "
+                "Could you try again with one more detail?"
+            )
+        except Exception as exc:
+            st.session_state.last_runtime_error = str(exc)
+            status.update(label="Temporary issue occurred", state="error")
+            return (
+                "I ran into a temporary issue and could not complete that request. "
+                "Please try again in a moment or rephrase your message."
+            )
+
+
+def _handle_prompt(
+    selected_prompt: str,
+    agent: CompiledStateGraph,
+    context: Context,
+    config: dict[str, Any],
+) -> None:
+    clean_prompt = selected_prompt.strip()
+    if not clean_prompt:
+        return
+    _append_message(role="user", content=clean_prompt)
+    with st.chat_message("user"):
+        st.markdown(clean_prompt)
+    with st.chat_message("assistant"):
+        response = _invoke_agent(
+            prompt=clean_prompt,
+            agent=agent,
+            context=context,
+            config=config,
+        )
+        st.markdown(response)
+
+
 def run_app() -> None:
     try:
         secrets = _ensure_runtime_secrets()
@@ -146,31 +222,13 @@ def run_app() -> None:
     agent = _load_agent(secrets["OPENAI_API_KEY"])
     _display_message_history()
 
+    selected_prompt = quick_action
+    chat_prompt = st.chat_input("Type your message here...")
+    if chat_prompt:
+        selected_prompt = chat_prompt
+
+    if selected_prompt:
+        _handle_prompt(selected_prompt, agent, context, config)
+
 
 run_app()
-
-
-# # Display chat messages from history on app rerun
-# for message in st.session_state.messages:
-#     with st.chat_message(message["role"]):
-#         st.markdown(message["content"])
-
-# if prompt := st.chat_input("Talk to me to find volunteering opportunities!"):
-#     agent_input = {"messages": [{"role": "user", "content": prompt}]}
-#     st.session_state.messages.append({"role": "user", "content": prompt})
-#     # Display user message in chat message container
-#     with st.chat_message("user"):
-#         st.markdown(prompt)
-
-#     # Add user message to chat history
-
-#     # Display assistant response in chat message container
-#     with st.chat_message("assistant"):
-#         result = agent.invoke(agent_input, config=config, context=context)
-#         response = result["structured_response"].response
-
-#         st.markdown(response)
-
-#     st.session_state.messages.append(
-#         {"role": "assistant", "content": response}
-#     )
