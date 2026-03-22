@@ -153,32 +153,24 @@ def _normalize_profile(row: dict[str, Any]) -> dict[str, Any]:
 
 @tool
 def get_volunteer_information(runtime: ToolRuntime[Context]):
-    """Retrieves the full profile for the currently logged-in volunteer.
-    Call this ONLY ONCE at the start of the conversation to understand the
-    user's background.
-
-    Args:
-        runtime: The runtime context containing the user ID.
-
-    Returns:
-        A dictionary containing the volunteer's information.
-    """
-    supabase_client = runtime.context.supabase
-    print(
-        f"Getting volunteer information for user ID: {runtime.context.user_id}"
+    """Retrieve the currently logged-in volunteer prfile. Use once at start"""
+    profile_row = _safe_profile_lookup(
+        runtime.context.supabase, runtime.context.user_id
     )
-    res = (
-        supabase_client.table("volunteer_profiles")
-        .select("*")
-        .eq("user_id", runtime.context.user_id)
-        .execute()
-    )
-    if res.data == []:
-        return "The user does not yet have a profile. Please ask them to create one."
-    else:
-        del res.data[0]["preference_embedding"]
-        print("Received results")
-        return res.data[0]
+    if profile_row is None:
+        return (
+            "No volunteer profile exists yet for this account. "
+            "Please guide the user through profile setup"
+        )
+
+    profile = _normalize_profile(profile_row)
+    profile.pop("preference_embedding", None)
+
+    return {
+        key: value
+        for key, value in profile.items()
+        if value not in (None, "", [], {})
+    }
 
 
 # @tool
