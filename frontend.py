@@ -11,6 +11,25 @@ require_auth()
 st.sidebar.button("Logout", on_click=logout)
 st.title("Volunteer Finder")
 
+
+def _get_secret(name: str) -> str:
+    value = st.secrets.get(name)
+    if not value:
+        raise RuntimeError(f"Required secret {name} is not set")
+    return value
+
+
+def _ensure_runtime_secrets() -> dict[str, str]:
+    openai_api_key = _get_secret("OPENAI_API_KEY")
+    supabase_url = _get_secret("SUPABASE_URL")
+    supabase_key = _get_secret("SUPABASE_KEY")
+    return {
+        "OPENAI_API_KEY": openai_api_key,
+        "SUPABASE_URL": supabase_url,
+        "SUPABASE_KEY": supabase_key,
+    }
+
+
 api_key = st.secrets["OPENAI_API_KEY"]
 
 
@@ -68,3 +87,11 @@ if prompt := st.chat_input("Talk to me to find volunteering opportunities!"):
     st.session_state.messages.append(
         {"role": "assistant", "content": response}
     )
+
+
+def run_app() -> None:
+    try:
+        _ensure_runtime_secrets()
+    except RuntimeError as e:
+        st.error(str(e))
+        st.stop()
