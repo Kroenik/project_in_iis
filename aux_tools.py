@@ -213,30 +213,3 @@ def safe_get_all_opportunities(client: Any) -> list[dict[str, Any]]:
         return result.data or []
     except Exception:
         return []
-
-
-def _zip_score(
-    user_zip: int | None, opp_zip: int | None, radius: int | None
-) -> float:
-    """Calculate zip score based on the zip code. When all match highest score
-    when third digit matches second highest, when first matches third highest
-    as this is the federal state. Else none
-
-    Args:
-        user_zip (int | None): _description_
-        opp_zip (int | None): _description_
-        radius (int | None): _description_
-
-    Returns:
-        float: _description_
-    """
-    if user_zip is None or opp_zip is None:
-        return 0.0
-    if user_zip == opp_zip:
-        return 1.0
-    if str(user_zip)[2:3] == str(opp_zip)[2:3]:
-        return 0.5
-    if str(user_zip)[:1] == str(opp_zip)[:1]:
-        return 0.2
-
-    return 0.0

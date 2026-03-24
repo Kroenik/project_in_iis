@@ -101,17 +101,31 @@ def get_opportunities_for_volunteer(runtime: ToolRuntime[Context]):
 @tool
 def get_opportunity_details(
     runtime: ToolRuntime[Context], opportunity_id: int
-):
-    """Retrieve the details of a specific opportunity"""
+) -> dict[str, Any] | str:
+    """Get details for one opportunity including contact info and next steps"""
     print(f"Getting details for opportunity ID: {opportunity_id}")
-    supabase_client = runtime.context.supabase
-    result = (
-        supabase_client.table("opportunities")
-        .select("*")
-        .eq("id", opportunity_id)
-        .execute()
+    try:
+        result = (
+            runtime.context.supabase.table("opportunities")
+            .select("*")
+            .eq("id", opportunity_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        return "I could not load that opportunity right now. Please try again."
+
+    if not result.data:
+        return "That opportunity could not be found."
+
+    opportunity = normalize_opportunity(result.data[0])
+    next_step = (
+        f"Contact {opportunity.get('organization') or 'the organization'}"
+        f" via {opportunity.get('email') or 'the listed contact'} and mention"
+        f" opportunity ID {opportunity_id}."
     )
-    return result.data
+    opportunity["next_steps"] = next_step
+    return opportunity
 
 
 @tool
