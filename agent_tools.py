@@ -1,5 +1,8 @@
+from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.utils.function_calling import ToolDescription
 from typing import Any
 from langchain.tools import tool, ToolRuntime
+from langchain_openai import ChatOpenAI
 import os
 from openai import OpenAI
 from custom_classes import Context
@@ -24,6 +27,7 @@ from profile_update_aux import (
     maybe_create_embedding,
 )
 from scoring import score_opportunity
+from aux import get_secret
 
 
 class VolunteerProfile(BaseModel):
@@ -374,3 +378,68 @@ def create_volunteer_opportunity(
     except Exception:
         return """I could not create the opportunity due to a database schema
          mismatch. Please check the database schema and try again."""
+
+
+class MappedSkill(BaseModel):
+    original_skill: str = Field(description="The original skill to map")
+    taxonomy_label: str | None = Field(
+        description="The closest taxonomy label"
+    )
+    confidence: float = Field(
+        description="The confidence score from 0.0 to 1.0"
+    )
+
+
+class SkillMappingResult(BaseModel):
+    mappings: list[MappedSkill] = Field(
+        description="The list of mapped skills"
+    )
+
+
+@tool
+def map_skills_to_taxonomy(skills: list[str]) -> list[MappedSkill]:
+    """Map free-text skills to taxonomy labels
+    for robust downstream matching."""
+    print(f"Mapping skills to taxonomy: {skills}")
+    with open("cleaned_list.json", "r") as f:
+        taxonomy = json.load(f)["items"]
+    print(f"Taxonomy loaded {type(taxonomy)}")
+    cleaned_skills = [skill.strip() for skill in skills if skill.strip()]
+    if not cleaned_skills:
+        return []
+
+    return _map_skills(cleaned_skills, taxonomy)
+
+
+def _map_skills(skills: list[str], taxonomy: list[str]) -> list[MappedSkill]:
+    structured_llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        api_key=get_secret("OPENAI_API_KEY"),
+    )
+
+    structured_llm = structured_llm.with_structured_output(SkillMappingResult)
+    print("Model loaded")
+    messages = [
+        SystemMessage(
+            content="""You are a skill taxonomy mapper. Your job is to map
+                   free-text skills to the closest entry in the provided
+                    taxonomy.
+
+                    Instructions:
+                    - Prefer specific matches over broad parent categories
+                    - If a skill genuinely does not fit any taxonomy entry,
+                     set taxonomy_id and taxonomy_label to null
+                    - Assign a confidence score from 0.0 to 1.0"""
+        ),
+        HumanMessage(
+            content=f"""TAXONOMY:
+                     {json.dumps(taxonomy, indent=2)}
+                     SKILLS TO MAP:
+                     {json.dumps(skills)}"""
+        ),
+    ]
+
+    result: SkillMappingResult = structured_llm.invoke(messages)
+    print("result", result.mappings)
+    return result.mappings

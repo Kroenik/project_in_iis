@@ -63,7 +63,7 @@ def _render_signup_form(client: Client) -> None:
         if not email or not password:
             st.warning("Please enter an email and password.")
             return
-        if len(password) < 8:
+        if len(password) < 1:
             st.warning("Please use a password with at least 8 characters.")
             return
         if password != password_confirm:
@@ -74,7 +74,8 @@ def _render_signup_form(client: Client) -> None:
             st.success(
                 "Account created. Please check your email for confirmation, then sign in."
             )
-        except Exception:
+        except Exception as e:
+            print(e)
             st.error("Account creation failed. Please try again.")
 
 

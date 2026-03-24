@@ -11,6 +11,7 @@ from agent_tools import (
     update_volunteer_profile,
     get_opportunity_details,
     create_volunteer_opportunity,
+    map_skills_to_taxonomy,
 )
 
 load_dotenv()
@@ -170,6 +171,7 @@ def get_agent(model, checkpointer, context):
             update_volunteer_profile,
             create_volunteer_profile,
             create_volunteer_opportunity,
+            map_skills_to_taxonomy,
         ],
         checkpointer=checkpointer,
         response_format=ToolStrategy(ResponseFormat),
