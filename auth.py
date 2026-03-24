@@ -83,7 +83,7 @@ def login_page():
     st.caption("Find volunteering opportunities with guided conversation.")
 
     try:
-        client = _get_supabase_client().auth
+        client = _get_supabase_client()
     except RuntimeError as exc:
         st.error(str(exc))
         st.stop()
