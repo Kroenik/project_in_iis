@@ -32,32 +32,32 @@ class VolunteerProfile(BaseModel):
     name: str = Field(description="Name of the user")
     zip_code: int = Field(description="Zip code of the user")
     availability: dict[str, str] = Field(
+        default_factory=dict,
         description=(
-            """Availability per weekday as a dict mapping day names to time
-             ranges. """
-            """Day names must be full English weekday names (Monday, Tuesday,
-             etc.). """
-            "Time ranges must be in 'HH-HH' format using 24h time. "
-            'Example: {"Monday": "10-13", "Tuesday": "9-17"}'
-            '{"Wednesday": "17-20", "Thursday": "14-16", "Friday": "9-13}'
-        )
+            "Availability by weekday and time range, e.g. {'Monday': '10-13'}"
+        ),
     )
     skills: list[str] = Field(
-        description="List of skills the user has, e.g. ['Cooking', 'Cleaning']"
+        default_factory=list,
+        description=(
+            "List of skills the user has, e.g. ['Cooking', 'Cleaning']"
+        ),
     )
     languages: list[str] = Field(
-        description="""List of languages the user can speak,
-        e.g. ['English', 'German']"""
+        default_factory=list,
+        description=(
+            "List of languages the user can speak, e.g. ['English', 'German']"
+        ),
     )
     h_week: int = Field(
-        description="""Number of hours the user is available/wants
-         to commit per week"""
+        description=(
+            "Number of hours the user is available/wants to commit per week"
+        )
     )
     start_date: date = Field(description="Start date in YYYY-MM-DD format")
     end_date: date = Field(description="End date in YYYY-MM-DD format")
     recurring: bool = Field(
-        description="""Whether the user wants to commit to a recurring schedule
-         or just one-time events"""
+        description="Whether recurring opportunities are preferred"
     )
     preference: str = Field(
         description="""Use this field as a kind of search term and summary of
@@ -65,6 +65,7 @@ class VolunteerProfile(BaseModel):
          an embedding for the user's profile."""
     )
     preference_embedding: list[float] | None = Field(default=None)
+    contact: str = Field(description="Contact detail (email or phone)")
 
 
 @tool
