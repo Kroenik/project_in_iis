@@ -9,6 +9,8 @@ from agent_tools import (
     get_volunteer_information,
     get_opportunities_for_volunteer,
     update_volunteer_profile,
+    get_opportunity_details,
+    create_volunteer_opportunity,
 )
 
 load_dotenv()
@@ -164,8 +166,10 @@ def get_agent(model, checkpointer, context):
         tools=[
             get_volunteer_information,
             get_opportunities_for_volunteer,
+            get_opportunity_details,
             update_volunteer_profile,
             create_volunteer_profile,
+            create_volunteer_opportunity,
         ],
         checkpointer=checkpointer,
         response_format=ToolStrategy(ResponseFormat),

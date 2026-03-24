@@ -328,3 +328,49 @@ def create_volunteer_profile(
         return (
             "I could not create the profile due to a database schema mismatch."
         )
+
+
+@tool
+def create_volunteer_opportunity(
+    runtime: ToolRuntime[Context], opportunity: OpportunityInput
+) -> str:
+    """Create a new volunteering opportunity (for NGO/coordinator workflows)."""
+    embedding_text = " ".join(
+        [
+            opportunity.organization,
+            opportunity.title,
+            opportunity.summary,
+            " ".join(opportunity.tasks),
+            " ".join(opportunity.required_skills),
+        ]
+    ).strip()
+    embedding = maybe_create_embedding(embedding_text)
+
+    payload = _compact(
+        {
+            "org": opportunity.organization,
+            "title": opportunity.title,
+            "summary": opportunity.summary,
+            "tasks": opportunity.tasks,
+            "required_skills": opportunity.required_skills,
+            "optional_skills": opportunity.optional_skills,
+            "language_requirements": opportunity.languages,
+            "amount_volunteers": opportunity.amount_volunteers,
+            "schedule": opportunity.schedule,
+            "hours_week": opportunity.hours_week,
+            "recurring": opportunity.recurring,
+            "zip_code": opportunity.zip_code,
+            "city": opportunity.city,
+            "email": opportunity.email,
+            "embedding": embedding,
+        }
+    )
+
+    try:
+        runtime.context.supabase.table("opportunities").insert(
+            payload
+        ).execute()
+        return "Opportunity created successfully."
+    except Exception:
+        return """I could not create the opportunity due to a database schema
+         mismatch. Please check the database schema and try again."""
