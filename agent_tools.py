@@ -2,11 +2,8 @@ from typing import Any
 from langchain.tools import tool, ToolRuntime
 import os
 from openai import OpenAI
-from aux import get_embedding, get_profile, get_opportunities
 from custom_classes import Context
-from sklearn.metrics.pairwise import cosine_similarity
 import json
-from langchain_openai import ChatOpenAI
 from datetime import date
 from pydantic import BaseModel, Field
 from aux_tools import (
@@ -27,6 +24,47 @@ from profile_update_aux import (
     maybe_create_embedding,
 )
 from scoring import score_opportunity
+
+
+class VolunteerProfile(BaseModel):
+    # Class describing a volunteer profile
+    city: str = Field(description="City of the user")
+    name: str = Field(description="Name of the user")
+    zip_code: int = Field(description="Zip code of the user")
+    availability: dict[str, str] = Field(
+        description=(
+            """Availability per weekday as a dict mapping day names to time
+             ranges. """
+            """Day names must be full English weekday names (Monday, Tuesday,
+             etc.). """
+            "Time ranges must be in 'HH-HH' format using 24h time. "
+            'Example: {"Monday": "10-13", "Tuesday": "9-17"}'
+            '{"Wednesday": "17-20", "Thursday": "14-16", "Friday": "9-13}'
+        )
+    )
+    skills: list[str] = Field(
+        description="List of skills the user has, e.g. ['Cooking', 'Cleaning']"
+    )
+    languages: list[str] = Field(
+        description="""List of languages the user can speak,
+        e.g. ['English', 'German']"""
+    )
+    h_week: int = Field(
+        description="""Number of hours the user is available/wants
+         to commit per week"""
+    )
+    start_date: date = Field(description="Start date in YYYY-MM-DD format")
+    end_date: date = Field(description="End date in YYYY-MM-DD format")
+    recurring: bool = Field(
+        description="""Whether the user wants to commit to a recurring schedule
+         or just one-time events"""
+    )
+    preference: str = Field(
+        description="""Use this field as a kind of search term and summary of
+         what the user is looking for at the moment. It will be used to create
+         an embedding for the user's profile."""
+    )
+    preference_embedding: list[float] | None = Field(default=None)
 
 
 @tool
@@ -82,7 +120,7 @@ def get_opportunities_for_volunteer(runtime: ToolRuntime[Context]):
     if not ranked:
         return (
             "I could not find a strong match yet. Ask the user for more details "
-            "about interests, preferred schedule, and location radius."
+            "about interests, preferred schedule, and location."
         )
 
     ranked.sort(key=lambda item: item[0], reverse=True)
@@ -161,7 +199,7 @@ def update_volunteer_profile(
     db_column = detect_profile_column(profile_row, canonical_field)
     update_value: Any = value.strip()
 
-    if canonical_field in {"zip_code", "radius", "h_week"}:
+    if canonical_field in {"zip_code", "h_week"}:
         parsed_int = to_int(update_value)
         if parsed_int is None:
             return f"Please provide a valid number for {canonical_field}."
@@ -218,48 +256,6 @@ def update_volunteer_profile(
         )
 
     return f"Updated {canonical_field} successfully."
-
-
-class VolunteerProfile(BaseModel):
-    # Class describing a volunteer profile
-    city: str
-    name: str
-    zip_code: int
-    radius: int = Field(description="Radius in kilometers")
-    availability: dict[str, str] = Field(
-        description=(
-            """Availability per weekday as a dict mapping day names to time
-             ranges. """
-            """Day names must be full English weekday names (Monday, Tuesday,
-             etc.). """
-            "Time ranges must be in 'HH-HH' format using 24h time. "
-            'Example: {"Monday": "10-13", "Tuesday": "9-17"}'
-            '{"Wednesday": "17-20", "Thursday": "14-16", "Friday": "9-13}'
-        )
-    )
-    skills: list[str] = Field(
-        description="List of skills the user has, e.g. ['Cooking', 'Cleaning']"
-    )
-    languages: list[str] = Field(
-        description="""List of languages the user can speak,
-        e.g. ['English', 'German']"""
-    )
-    h_week: int = Field(
-        description="""Number of hours the user is available/wants
-         to commit per week"""
-    )
-    start_date: date = Field(description="Start date in YYYY-MM-DD format")
-    end_date: date = Field(description="End date in YYYY-MM-DD format")
-    recurring: bool = Field(
-        description="""Whether the user wants to commit to a recurring schedule
-         or just one-time events"""
-    )
-    preference: str = Field(
-        description="""Use this field as a kind of search term and summary of
-         what the user is looking for at the moment. It will be used to create
-         an embedding for the user's profile."""
-    )
-    preference_embedding: list[float] | None = Field(default=None)
 
 
 @tool

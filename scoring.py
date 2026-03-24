@@ -45,9 +45,7 @@ def _tokenize(text: str) -> set[str]:
     return set(re.findall(r"[a-zA-ZäöüÄÖÜß]{3,}", text.lower()))
 
 
-def _zip_score(
-    user_zip: int | None, opp_zip: int | None, radius: int | None
-) -> float:
+def _zip_score(user_zip: int | None, opp_zip: int | None) -> float:
     """Calculate zip score based on the zip code. When all match highest score
     when third digit matches second highest, when first matches third highest
     as this is the federal state. Else none
@@ -55,7 +53,6 @@ def _zip_score(
     Args:
         user_zip (int | None): _description_
         opp_zip (int | None): _description_
-        radius (int | None): _description_
 
     Returns:
         float: _description_
@@ -173,7 +170,6 @@ def score_opportunity(
     location_score = _zip_score(
         profile.get("zip_code"),
         opportunity.get("zip_code"),
-        profile.get("radius"),
     )
     recurring_score = _recurring_score(profile, opportunity)
 

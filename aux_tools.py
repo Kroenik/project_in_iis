@@ -7,7 +7,6 @@ PROFILE_ALIASES: dict[str, list[str]] = {
     "contact": ["contact", "contact_text", "email", "email_text"],
     "city": ["city", "city_text"],
     "zip_code": ["zip_code", "zip_int", "zip"],
-    "radius": ["radius", "radius_int"],
     "availability": ["availability", "availability_json"],
     "skills": ["skills", "skills_json"],
     "languages": ["languages", "languages_text"],
@@ -24,7 +23,6 @@ UPDATE_FIELD_ALIASES: dict[str, list[str]] = {
     "contact": ["contact", "email", "phone"],
     "city": ["city", "location", "place"],
     "zip_code": ["zip", "zip code", "postal", "postal code"],
-    "radius": ["radius", "distance"],
     "availability": ["availability", "time", "schedule", "days"],
     "skills": ["skills", "skill"],
     "languages": ["languages", "language"],
@@ -173,7 +171,6 @@ def normalize_profile(row: dict[str, Any]) -> dict[str, Any]:
         "contact": _coalesce(row, PROFILE_ALIASES["contact"]),
         "city": _coalesce(row, PROFILE_ALIASES["city"]),
         "zip_code": to_int(_coalesce(row, PROFILE_ALIASES["zip_code"])),
-        "radius": to_int(_coalesce(row, PROFILE_ALIASES["radius"])),
         "availability": to_dict(
             _coalesce(row, PROFILE_ALIASES["availability"])
         ),
