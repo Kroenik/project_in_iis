@@ -83,6 +83,7 @@ class OpportunityInput(BaseModel):
     end_date: date | None = Field(default=None)
     schedule: dict[str, str] = Field(default_factory=dict)
     hours_week: int | None = Field(default=None)
+
     recurring: bool | None = Field(default=None)
     zip_code: int | None = Field(default=None)
     city: str | None = Field(default=None)
@@ -280,25 +281,50 @@ def update_volunteer_profile(
     return f"Updated {canonical_field} successfully."
 
 
+def _compact(payload: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in payload.items() if v is not None}
+
+
 @tool
 def create_volunteer_profile(
     runtime: ToolRuntime[Context], profile: VolunteerProfile
 ) -> str:
-    """
-    Creates a new volunteer profile in the database.
-    Use this when the user wants to create a new profile.
-    """
-    print(f"Creating volunteer profile for user ID: {runtime.context.user_id}")
-
-    openai = OpenAI(api_key=os.environ.get("OPENAI_TOKEN"))
-    # TODO: profile preference soll ein vom model erstellte summary sein
-    supabase_client = runtime.context.supabase
-
-    profile.preference_embedding = get_embedding(openai, profile.preference)
-    profile = json.loads(profile.model_dump_json())
-    profile["user_id"] = runtime.context.user_id
-    result = (
-        supabase_client.table("volunteer_profiles").insert(profile).execute()
+    """Create a new volunteer profile for the logged-in useer"""
+    existing = safe_profile_lookup(
+        runtime.context.supabase, runtime.context.user_id
     )
-    return f"""Created volunteer profile for user ID: {runtime.context.user_id}
-             with the following data: {result.data[0]}"""
+    if existing is not None:
+        return "A profile already exists for this account. Use update instead."
+
+    embedding = maybe_create_embedding(profile.preference)
+    payload = _compact(
+        {
+            "user_id": runtime.context.user_id,
+            "name": profile.name,
+            "contact": profile.contact,
+            "city": profile.city,
+            "zip_code": profile.zip_code,
+            "availability": profile.availability,
+            "skills": profile.skills,
+            "languages": profile.languages,
+            "h_week": profile.h_week,
+            "start_date": profile.start_date.isoformat()
+            if profile.start_date
+            else None,
+            "end_date": profile.end_date.isoformat()
+            if profile.end_date
+            else None,
+            "recurring": profile.recurring,
+            "preference": profile.preference,
+            "preference_embedding": embedding,
+        }
+    )
+    try:
+        runtime.context.supabase.table("volunteer_profiles").insert(
+            payload
+        ).execute()
+        return "Profile created successfully."
+    except Exception:
+        return (
+            "I could not create the profile due to a database schema mismatch."
+        )
