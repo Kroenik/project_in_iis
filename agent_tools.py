@@ -10,151 +10,36 @@ from langchain_openai import ChatOpenAI
 from datetime import date
 from pydantic import BaseModel, Field
 import re
+from aux_tools import (
+    safe_profile_lookup,
+    normalize_profile,
+    safe_get_all_opportunities,
+    normalize_opportunity,
+)
 
 
-PROFILE_ALIASES: dict[str, list[str]] = {
-    "name": ["name", "name_text", "full_name", "full_name_text"],
-    "contact": ["contact", "contact_text", "email", "email_text"],
-    "city": ["city", "city_text"],
-    "zip_code": ["zip_code", "zip_int", "zip"],
-    "radius": ["radius", "radius_int"],
-    "availability": ["availability", "availability_json"],
-    "skills": ["skills", "skills_json"],
-    "languages": ["languages", "languages_text"],
-    "h_week": ["h_week", "h_week_int", "hours_week", "hours_week_int"],
-    "start_date": ["start_date"],
-    "end_date": ["end_date"],
-    "recurring": ["recurring", "recurring_bool"],
-    "preference": ["preference", "preference_text", "preference_summary"],
-    "preference_embedding": ["preference_embedding"],
+DAY_MAP = {
+    "monday": "monday",
+    "montag": "monday",
+    "tuesday": "tuesday",
+    "dienstag": "tuesday",
+    "wednesday": "wednesday",
+    "mittwoch": "wednesday",
+    "thursday": "thursday",
+    "donnerstag": "thursday",
+    "friday": "friday",
+    "freitag": "friday",
+    "saturday": "saturday",
+    "samstag": "saturday",
+    "sunday": "sunday",
+    "sonntag": "sunday",
 }
-
-
-def _coalesce(row: dict[str, Any], aliases: list[str]) -> Any:
-    for key in aliases:
-        if key in row and row[key] is not None:
-            return row[key]
-    return None
-
-
-def _to_int(value: Any) -> int | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, (int, float)):
-        return int(value)
-    text = str(value).strip()
-    return int(text) if text.isdigit() else None
-
-
-def _to_bool(value: Any) -> bool | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, bool):
-        return value
-    text = str(value).strip().lower()
-    if text in {"true", "yes", "y", "ja", "1", "recurring", "regular"}:
-        return True
-    if text in {"false", "no", "n", "nein", "0", "one-time", "one time"}:
-        return False
-    return None
-
-
-def _safe_profile_lookup(
-    client: Any, user_id: str | int
-) -> dict[str, Any] | None:
-    user_candidates: list[str | int] = [user_id]
-    if isinstance(user_id, str) and user_id.isdigit():
-        user_candidates.append(int(user_id))
-
-    for candidate in user_candidates:
-        try:
-            result = (
-                client.table("volunteer_profiles")
-                .select("*")
-                .eq("user_id", candidate)
-                .limit(1)
-                .execute()
-            )
-            if result.data:
-                return result.data[0]
-        except Exception:
-            continue
-    return None
-
-
-def _to_list(value: Any) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
-    if isinstance(value, str):
-        stripped = value.strip()
-        if not stripped:
-            return []
-        if stripped.startswith("[") and stripped.endswith("]"):
-            try:
-                data = json.loads(stripped)
-                if isinstance(data, list):
-                    return [
-                        str(item).strip() for item in data if str(item).strip()
-                    ]
-            except json.JSONDecodeError:
-                pass
-        return [
-            part.strip()
-            for part in re.split(r"[,;/\n]", stripped)
-            if part.strip()
-        ]
-    return [str(value).strip()]
-
-
-def _to_dict(value: Any) -> dict[str, str]:
-    if value is None:
-        return {}
-    if isinstance(value, dict):
-        return {str(k): str(v) for k, v in value.items()}
-    if isinstance(value, str):
-        stripped = value.strip()
-        if not stripped:
-            return {}
-        try:
-            data = json.loads(stripped)
-            if isinstance(data, dict):
-                return {str(k): str(v) for k, v in data.items()}
-        except json.JSONDecodeError:
-            pass
-    return {}
-
-
-def _normalize_profile(row: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "name": _coalesce(row, PROFILE_ALIASES["name"]),
-        "contact": _coalesce(row, PROFILE_ALIASES["contact"]),
-        "city": _coalesce(row, PROFILE_ALIASES["city"]),
-        "zip_code": _to_int(_coalesce(row, PROFILE_ALIASES["zip_code"])),
-        "radius": _to_int(_coalesce(row, PROFILE_ALIASES["radius"])),
-        "availability": _to_dict(
-            _coalesce(row, PROFILE_ALIASES["availability"])
-        ),
-        "skills": _to_list(_coalesce(row, PROFILE_ALIASES["skills"])),
-        "languages": _to_list(_coalesce(row, PROFILE_ALIASES["languages"])),
-        "h_week": _to_int(_coalesce(row, PROFILE_ALIASES["h_week"])),
-        "start_date": _coalesce(row, PROFILE_ALIASES["start_date"]),
-        "end_date": _coalesce(row, PROFILE_ALIASES["end_date"]),
-        "recurring": _to_bool(_coalesce(row, PROFILE_ALIASES["recurring"])),
-        "preference": _coalesce(row, PROFILE_ALIASES["preference"]),
-        "preference_embedding": _coalesce(
-            row, PROFILE_ALIASES["preference_embedding"]
-        ),
-    }
 
 
 @tool
 def get_volunteer_information(runtime: ToolRuntime[Context]):
     """Retrieve the currently logged-in volunteer prfile. Use once at start"""
-    profile_row = _safe_profile_lookup(
+    profile_row = safe_profile_lookup(
         runtime.context.supabase, runtime.context.user_id
     )
     if profile_row is None:
@@ -163,7 +48,7 @@ def get_volunteer_information(runtime: ToolRuntime[Context]):
             "Please guide the user through profile setup"
         )
 
-    profile = _normalize_profile(profile_row)
+    profile = normalize_profile(profile_row)
     profile.pop("preference_embedding", None)
 
     return {
@@ -173,31 +58,61 @@ def get_volunteer_information(runtime: ToolRuntime[Context]):
     }
 
 
-# @tool
-# def update_volunteer_information(runtime: ToolRuntime[Context]):
 @tool
 def get_opportunities_for_volunteer(runtime: ToolRuntime[Context]):
-    """Retrieve the best matches for the currently logged-in volunteer, based
-    on their profile and preferences
-    Present the matches more thoroughly and not just a summary"""
+    """Return best-matching opportunities based on profile, skills, location,
+    and time."""
     print(f"Getting matches for volunteer ID: {runtime.context.user_id}")
-    supabase_client = runtime.context.supabase
-    profile = get_profile(
-        client=supabase_client, profile_id=runtime.context.user_id
+    profile_row = safe_profile_lookup(
+        client=runtime.context.supabase, user_id=runtime.context.user_id
     )
-    opportunities = get_opportunities()
-    matches = []
 
-    for opportunity in opportunities:
-        if opportunity["embedding"] is not None:
-            similarity = cosine_similarity(
-                [json.loads(profile["preference_embedding"])],
-                [json.loads(opportunity["embedding"])],
-            )
-            print(similarity)
-            if similarity > 0.1:
-                matches.append(opportunity)
-    return matches[:3]
+    if profile_row is None:
+        return (
+            "No profile found yet, so matching cannot run. "
+            "Please create the profile first."
+        )
+
+    profile = normalize_profile(profile_row)
+    opportunities = safe_get_all_opportunities(runtime.context.supabase)
+    if not opportunities:
+        return "No volunteering opportunities are available at the moment."
+
+    ranked: list[tuple[float, dict[str, Any], list[str]]] = []
+    for row in opportunities:
+        normalized = normalize_opportunity(row)
+        score, reasons = score_opportunity(profile, normalized)
+        if score <= 0:
+            continue
+        ranked.append((score, normalized, reasons))
+
+    if not ranked:
+        return (
+            "I could not find a strong match yet. Ask the user for more details "
+            "about interests, preferred schedule, and location radius."
+        )
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    top_matches = ranked[:5]
+    response: list[dict[str, Any]] = []
+    for score, opp, reasons in top_matches:
+        response.append(
+            {
+                "id": opp.get("id"),
+                "organization": opp.get("organization"),
+                "title": opp.get("title"),
+                "summary": opp.get("summary"),
+                "schedule": opp.get("schedule"),
+                "hours_week": opp.get("hours_week"),
+                "recurring": opp.get("recurring"),
+                "zip_code": opp.get("zip_code"),
+                "contact_email": opp.get("email"),
+                "match_score": round(score, 3),
+                "why_good_fit": reasons
+                or ["This opportunity is generally aligned with the profile."],
+            }
+        )
+    return response
 
 
 @tool
@@ -312,8 +227,10 @@ class VolunteerProfile(BaseModel):
     radius: int = Field(description="Radius in kilometers")
     availability: dict[str, str] = Field(
         description=(
-            "Availability per weekday as a dict mapping day names to time ranges. "
-            "Day names must be full English weekday names (Monday, Tuesday, etc.). "
+            """Availability per weekday as a dict mapping day names to time
+             ranges. """
+            """Day names must be full English weekday names (Monday, Tuesday,
+             etc.). """
             "Time ranges must be in 'HH-HH' format using 24h time. "
             'Example: {"Monday": "10-13", "Tuesday": "9-17"}'
             '{"Wednesday": "17-20", "Thursday": "14-16", "Friday": "9-13}'
@@ -323,19 +240,23 @@ class VolunteerProfile(BaseModel):
         description="List of skills the user has, e.g. ['Cooking', 'Cleaning']"
     )
     languages: list[str] = Field(
-        description="List of languages the user can speak, e.g. ['English', 'German']"
+        description="""List of languages the user can speak,
+        e.g. ['English', 'German']"""
     )
     h_week: int = Field(
-        description="Number of hours the user is available7wants to commit per week"
+        description="""Number of hours the user is available/wants
+         to commit per week"""
     )
     start_date: date = Field(description="Start date in YYYY-MM-DD format")
     end_date: date = Field(description="End date in YYYY-MM-DD format")
     recurring: bool = Field(
-        description="Whether the user wants to commit to a recurring schedule or just one-time events"
+        description="""Whether the user wants to commit to a recurring schedule
+         or just one-time events"""
     )
     preference: str = Field(
-        description="""Use this field as a kind of search term and summary of 
-        what the user is looking for at the moment. It will be used to create an embedding for the user's profile."""
+        description="""Use this field as a kind of search term and summary of
+         what the user is looking for at the moment. It will be used to create
+         an embedding for the user's profile."""
     )
     preference_embedding: list[float] | None = Field(default=None)
 
@@ -360,4 +281,184 @@ def create_volunteer_profile(
     result = (
         supabase_client.table("volunteer_profiles").insert(profile).execute()
     )
-    return f"Created volunteer profile for user ID: {runtime.context.user_id} with the following data: {result.data[0]}"
+    return f"""Created volunteer profile for user ID: {runtime.context.user_id}
+             with the following data: {result.data[0]}"""
+
+
+def _zip_score(
+    user_zip: int | None, opp_zip: int | None, radius: int | None
+) -> float:
+    """Calculate zip score based on the zip code. When all match highest score
+    when third digit matches second highest, when first matches third highest
+    as this is the federal state. Else none
+
+    Args:
+        user_zip (int | None): _description_
+        opp_zip (int | None): _description_
+        radius (int | None): _description_
+
+    Returns:
+        float: _description_
+    """
+    if user_zip is None or opp_zip is None:
+        return 0.0
+    if user_zip == opp_zip:
+        return 1.0
+    if str(user_zip)[2:3] == str(opp_zip)[2:3]:
+        return 0.5
+    if str(user_zip)[:1] == str(opp_zip)[:1]:
+        return 0.2
+
+    return 0.0
+
+
+def _normalize_day(day: str) -> str:
+    return DAY_MAP.get(day.strip().lower(), day.strip().lower())
+
+
+def _parse_hour_range(raw: str) -> tuple[int, int] | None:
+    match = re.match(
+        r"^\s*(\d{1,2})(?::\d{2})?\s*-\s*(\d{1,2})(?::\d{2})?\s*$", raw
+    )
+    if not match:
+        return None
+    start = int(match.group(1))
+    end = int(match.group(2))
+    if start > 23 or end > 24 or start >= end:
+        return None
+    return (start, end)
+
+
+def _hour_overlap(a: tuple[int, int], b: tuple[int, int]) -> int:
+    return max(0, min(a[1], b[1]) - max(a[0], b[0]))
+
+
+def _tokenize(text: str) -> set[str]:
+    return set(re.findall(r"[a-zA-ZäöüÄÖÜß]{3,}", text.lower()))
+
+
+def _availability_score(
+    user_availability: dict[str, str], opportunity_schedule: dict[str, str]
+) -> float:
+    if not user_availability or not opportunity_schedule:
+        return 0.0
+    overlap_total = 0
+    comparisons = 0
+    normalized_user = {
+        _normalize_day(day): timerange
+        for day, timerange in user_availability.items()
+    }
+    normalized_opp = {
+        _normalize_day(day): timerange
+        for day, timerange in opportunity_schedule.items()
+    }
+
+    for day, user_range in normalized_user.items():
+        if day not in normalized_opp:
+            continue
+        parsed_user = _parse_hour_range(str(user_range))
+        parsed_opp = _parse_hour_range(str(normalized_opp[day]))
+        if parsed_user is None or parsed_opp is None:
+            continue
+        comparisons += 1
+        overlap_total += _hour_overlap(parsed_user, parsed_opp)
+
+    if comparisons == 0:
+        return 0.0
+    return min(1.0, overlap_total / (comparisons * 3))
+
+
+def _keyword_score(
+    profile: dict[str, Any], opportunity: dict[str, Any]
+) -> float:
+    user_text = " ".join(
+        [
+            str(profile.get("preference") or ""),
+            " ".join(profile.get("skills") or []),
+            " ".join(profile.get("languages") or []),
+        ]
+    )
+    opp_text = " ".join(
+        [
+            str(opportunity.get("title") or ""),
+            str(opportunity.get("summary") or ""),
+            " ".join(opportunity.get("tasks") or []),
+            " ".join(opportunity.get("required_skills") or []),
+            " ".join(opportunity.get("optional_skills") or []),
+        ]
+    )
+    user_tokens = _tokenize(user_text)
+    opp_tokens = _tokenize(opp_text)
+    if not user_tokens or not opp_tokens:
+        return 0.0
+    overlap = len(user_tokens.intersection(opp_tokens))
+    return overlap / max(len(user_tokens), 1)
+
+
+def _skills_score(
+    profile: dict[str, Any], opportunity: dict[str, Any]
+) -> float:
+    user_skills = _tokenize(" ".join(profile.get("skills") or []))
+    required = _tokenize(" ".join(opportunity.get("required_skills") or []))
+    optional = _tokenize(" ".join(opportunity.get("optional_skills") or []))
+    if not user_skills:
+        return 0.0
+    required_overlap = len(user_skills.intersection(required))
+    optional_overlap = len(user_skills.intersection(optional))
+    required_score = (
+        required_overlap / max(len(required), 1) if required else 0.0
+    )
+    optional_score = (
+        optional_overlap / max(len(optional), 1) if optional else 0.0
+    )
+    return min(1.0, (required_score * 0.8) + (optional_score * 0.2))
+
+
+def _recurring_score(
+    profile: dict[str, Any], opportunity: dict[str, Any]
+) -> float:
+    user_pref = profile.get("recurring")
+    opp_rec = opportunity.get("recurring")
+    if user_pref is None or opp_rec is None:
+        return 0.0
+    return 1.0 if bool(user_pref) is bool(opp_rec) else -0.2
+
+
+def score_opportunity(
+    profile: dict[str, Any], opportunity: dict[str, Any]
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+
+    skill_score = _skills_score(profile, opportunity)
+    keyword_score = _keyword_score(profile, opportunity)
+    availability_score = _availability_score(
+        profile.get("availability") or {}, opportunity.get("schedule") or {}
+    )
+    location_score = _zip_score(
+        profile.get("zip_code"),
+        opportunity.get("zip_code"),
+        profile.get("radius"),
+    )
+    recurring_score = _recurring_score(profile, opportunity)
+
+    score += skill_score * 0.35
+    score += keyword_score * 0.25
+    score += availability_score * 0.25
+    score += location_score * 0.10
+    score += recurring_score * 0.05
+
+    if skill_score > 0.2:
+        reasons.append("Your skills align with this opportunity.")
+    if availability_score > 0.2:
+        reasons.append("The schedule overlaps with your availability.")
+    if location_score > 0.4:
+        reasons.append("The location is close to your preferred area.")
+    if recurring_score > 0:
+        reasons.append(
+            "This matches your preference for recurring/one-time work."
+        )
+    if keyword_score > 0.15:
+        reasons.append("The topic matches your stated interests.")
+
+    return score, reasons
