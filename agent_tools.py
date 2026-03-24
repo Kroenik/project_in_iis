@@ -68,6 +68,27 @@ class VolunteerProfile(BaseModel):
     contact: str = Field(description="Contact detail (email or phone)")
 
 
+class OpportunityInput(BaseModel):
+    organization: str = Field(description="Organization name")
+    title: str = Field(description="Opportunity title")
+    summary: str = Field(description="Short summary")
+    tasks: list[str] = Field(default_factory=list)
+    required_skills: list[str] = Field(default_factory=list)
+    optional_skills: str | None = Field(
+        default=None, description="Optional skills as free text"
+    )
+    languages: list[str] = Field(default_factory=list)
+    amount_volunteers: int | None = Field(default=None)
+    start_date: date | None = Field(default=None)
+    end_date: date | None = Field(default=None)
+    schedule: dict[str, str] = Field(default_factory=dict)
+    hours_week: int | None = Field(default=None)
+    recurring: bool | None = Field(default=None)
+    zip_code: int | None = Field(default=None)
+    city: str | None = Field(default=None)
+    email: str = Field(description="Contact email")
+
+
 @tool
 def get_volunteer_information(runtime: ToolRuntime[Context]):
     """Retrieve the currently logged-in volunteer prfile. Use once at start"""
