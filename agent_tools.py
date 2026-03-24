@@ -9,12 +9,22 @@ import json
 from langchain_openai import ChatOpenAI
 from datetime import date
 from pydantic import BaseModel, Field
-import re
 from aux_tools import (
     safe_profile_lookup,
     normalize_profile,
     safe_get_all_opportunities,
     normalize_opportunity,
+    normalize_update_field,
+    UPDATE_FIELD_ALIASES,
+    to_int,
+    to_bool,
+    to_list,
+    to_dict,
+)
+from profile_update_aux import (
+    detect_profile_column,
+    parse_availability_update,
+    maybe_create_embedding,
 )
 from scoring import score_opportunity
 
@@ -130,96 +140,84 @@ def get_opportunity_details(
 
 @tool
 def update_volunteer_profile(
-    runtime: ToolRuntime[Context], user_input: str
+    runtime: ToolRuntime[Context],
+    field: str,
+    value: str,
+    operation: str,
 ) -> str:
-    """
-    Updates a field in the user's profile based on a natural
-    language description.
-    Use this when the user wants to update any personal information.
-    Only use this when a user already has a profile.
-    """
-    print(f"Updating volunteer profile for user ID: {runtime.context.user_id}")
-    column_names = [
-        "city",
-        "zip_code",
-        "radius",
-        "availability",
-        "skills",
-        "languages",
-        "h_week",
-        "start_date",
-        "end_date",
-        "recurring",
-        "preference",
-    ]
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.5, timeout=10)
-    prompt = f"""You are helping update a user profile in a database.
+    """Update one profile field. Use operation='add'
+    for skills/languages additions."""
+    canonical_field = normalize_update_field(field)
+    if canonical_field is None:
+        valid = ", ".join(sorted(UPDATE_FIELD_ALIASES))
+        return f"I could not map that field. Use one of: {valid}."
 
-            Available columns in the user_profiles table:
-            {", ".join(column_names)}
+    profile_row = safe_profile_lookup(
+        runtime.context.supabase, runtime.context.user_id
+    )
+    if profile_row is None:
+        return "No profile found to update. Please create a profile first."
 
-            The user said: "{user_input}"
+    db_column = detect_profile_column(profile_row, canonical_field)
+    update_value: Any = value.strip()
 
-            Your job:
-            1. Identify which column the user wants to update
-            (match by meaning, not exact wording)
-            2. Extract the value they want to set
-
-            Respond in this exact JSON format with no extra text:
-            {{"column": "<exact_column_name>", "value": "<extracted_value>"}}
-
-            If you cannot confidently identify the column, respond:
-            {
-        "column": null,
-        "value": null,
-        "reason": "<why you couldn't match>"
-            }
-            """
-    response = llm.invoke(prompt)
-    parsed = json.loads(response.content)
-
-    if not parsed.get("column"):
-        return f"""I could not determine which column to update: {
-            parsed.get("reason")
-        }"""
-
-    column = parsed.get("column")
-    value = parsed.get("value")
-
-    if column not in column_names:
-        return f"Identified column {column} is not valid. Please try again."
-
-    supabase_client = runtime.context.supabase
-    # arrays
-    if column in ["skills", "languages"]:
-        current_col_vals = (
-            supabase_client.table("volunteer_profiles")
-            .select(f"{column}")
-            .eq("user_id", runtime.context.user_id)
-            .execute()
-        )
-
-        if current_col_vals.data == []:
-            return f"""The user does not yet have a {column} in their profile.
-            Please ask them to create one."""
+    if canonical_field in {"zip_code", "radius", "h_week"}:
+        parsed_int = to_int(update_value)
+        if parsed_int is None:
+            return f"Please provide a valid number for {canonical_field}."
+        update_value = parsed_int
+    elif canonical_field == "recurring":
+        parsed_bool = to_bool(update_value)
+        if parsed_bool is None:
+            return "Please provide true/false for recurring preference."
+        update_value = parsed_bool
+    elif canonical_field == "availability":
+        parsed_availability = parse_availability_update(update_value)
+        if not parsed_availability:
+            return (
+                "Please use format like 'Monday:10-13, Wednesday:14-18' "
+                "for availability updates."
+            )
+        current = to_dict(profile_row.get(db_column))
+        if operation.lower() == "add":
+            current.update(parsed_availability)
+            update_value = current
         else:
-            updated_col_vals = current_col_vals.data[0][column] + [value]
+            update_value = parsed_availability
+    elif canonical_field in {"skills", "languages"}:
+        incoming = to_list(update_value)
+        if not incoming:
+            return f"Please provide at least one value for {canonical_field}."
+        current = to_list(profile_row.get(db_column))
+        if operation.lower() == "add":
+            merged = current[:]
+            for item in incoming:
+                if item not in merged:
+                    merged.append(item)
+            update_value = merged
+        else:
+            update_value = incoming
 
-        _ = (
-            supabase_client.table("volunteer_profiles")
-            .update({column: updated_col_vals})
-            .eq("user_id", runtime.context.user_id)
-            .execute()
+    payload: dict[str, Any] = {db_column: update_value}
+
+    if canonical_field == "preference":
+        embedding = maybe_create_embedding(str(update_value))
+        if embedding is not None:
+            embedding_column = detect_profile_column(
+                profile_row, "preference_embedding"
+            )
+            payload[embedding_column] = embedding
+
+    try:
+        runtime.context.supabase.table("volunteer_profiles").update(
+            payload
+        ).eq("user_id", runtime.context.user_id).execute()
+    except Exception:
+        return (
+            "I could not save that profile update right now. Please try again."
         )
-        return f"Appended {value} to {column}"
-    else:
-        _ = (
-            supabase_client.table("volunteer_profiles")
-            .update({column: value})
-            .eq("user_id", runtime.context.user_id)
-            .execute()
-        )
-        return f"Updated {column} to {value}"
+
+    return f"Updated {canonical_field} successfully."
 
 
 class VolunteerProfile(BaseModel):

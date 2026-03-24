@@ -19,6 +19,22 @@ PROFILE_ALIASES: dict[str, list[str]] = {
     "preference_embedding": ["preference_embedding"],
 }
 
+UPDATE_FIELD_ALIASES: dict[str, list[str]] = {
+    "name": ["name", "full name"],
+    "contact": ["contact", "email", "phone"],
+    "city": ["city", "location", "place"],
+    "zip_code": ["zip", "zip code", "postal", "postal code"],
+    "radius": ["radius", "distance"],
+    "availability": ["availability", "time", "schedule", "days"],
+    "skills": ["skills", "skill"],
+    "languages": ["languages", "language"],
+    "h_week": ["hours", "hours per week", "weekly hours"],
+    "start_date": ["start date", "begin date", "from date"],
+    "end_date": ["end date", "until date"],
+    "recurring": ["recurring", "regular", "one-time", "one time"],
+    "preference": ["preference", "interest", "goal", "cause"],
+}
+
 
 OPPORTUNITY_ALIASES: dict[str, list[str]] = {
     "organization": ["org", "org_text", "organization", "organization_text"],
@@ -60,7 +76,7 @@ def _coalesce(row: dict[str, Any], aliases: list[str]) -> Any:
     return None
 
 
-def _to_int(value: Any) -> int | None:
+def to_int(value: Any) -> int | None:
     if value is None or value == "":
         return None
     if isinstance(value, bool):
@@ -71,7 +87,7 @@ def _to_int(value: Any) -> int | None:
     return int(text) if text.isdigit() else None
 
 
-def _to_bool(value: Any) -> bool | None:
+def to_bool(value: Any) -> bool | None:
     if value is None or value == "":
         return None
     if isinstance(value, bool):
@@ -107,7 +123,7 @@ def safe_profile_lookup(
     return None
 
 
-def _to_list(value: Any) -> list[str]:
+def to_list(value: Any) -> list[str]:
     if value is None:
         return []
     if isinstance(value, list):
@@ -133,7 +149,7 @@ def _to_list(value: Any) -> list[str]:
     return [str(value).strip()]
 
 
-def _to_dict(value: Any) -> dict[str, str]:
+def to_dict(value: Any) -> dict[str, str]:
     if value is None:
         return {}
     if isinstance(value, dict):
@@ -156,17 +172,17 @@ def normalize_profile(row: dict[str, Any]) -> dict[str, Any]:
         "name": _coalesce(row, PROFILE_ALIASES["name"]),
         "contact": _coalesce(row, PROFILE_ALIASES["contact"]),
         "city": _coalesce(row, PROFILE_ALIASES["city"]),
-        "zip_code": _to_int(_coalesce(row, PROFILE_ALIASES["zip_code"])),
-        "radius": _to_int(_coalesce(row, PROFILE_ALIASES["radius"])),
-        "availability": _to_dict(
+        "zip_code": to_int(_coalesce(row, PROFILE_ALIASES["zip_code"])),
+        "radius": to_int(_coalesce(row, PROFILE_ALIASES["radius"])),
+        "availability": to_dict(
             _coalesce(row, PROFILE_ALIASES["availability"])
         ),
-        "skills": _to_list(_coalesce(row, PROFILE_ALIASES["skills"])),
-        "languages": _to_list(_coalesce(row, PROFILE_ALIASES["languages"])),
-        "h_week": _to_int(_coalesce(row, PROFILE_ALIASES["h_week"])),
+        "skills": to_list(_coalesce(row, PROFILE_ALIASES["skills"])),
+        "languages": to_list(_coalesce(row, PROFILE_ALIASES["languages"])),
+        "h_week": to_int(_coalesce(row, PROFILE_ALIASES["h_week"])),
         "start_date": _coalesce(row, PROFILE_ALIASES["start_date"]),
         "end_date": _coalesce(row, PROFILE_ALIASES["end_date"]),
-        "recurring": _to_bool(_coalesce(row, PROFILE_ALIASES["recurring"])),
+        "recurring": to_bool(_coalesce(row, PROFILE_ALIASES["recurring"])),
         "preference": _coalesce(row, PROFILE_ALIASES["preference"]),
         "preference_embedding": _coalesce(
             row, PROFILE_ALIASES["preference_embedding"]
@@ -180,27 +196,23 @@ def normalize_opportunity(row: dict[str, Any]) -> dict[str, Any]:
         "organization": _coalesce(row, OPPORTUNITY_ALIASES["organization"]),
         "title": _coalesce(row, OPPORTUNITY_ALIASES["title"]),
         "summary": _coalesce(row, OPPORTUNITY_ALIASES["summary"]),
-        "tasks": _to_list(_coalesce(row, OPPORTUNITY_ALIASES["tasks"])),
-        "required_skills": _to_list(
+        "tasks": to_list(_coalesce(row, OPPORTUNITY_ALIASES["tasks"])),
+        "required_skills": to_list(
             _coalesce(row, OPPORTUNITY_ALIASES["required_skills"])
         ),
-        "optional_skills": _to_list(
+        "optional_skills": to_list(
             _coalesce(row, OPPORTUNITY_ALIASES["optional_skills"])
         ),
-        "languages": _to_list(
-            _coalesce(row, OPPORTUNITY_ALIASES["languages"])
-        ),
-        "amount_volunteers": _to_int(
+        "languages": to_list(_coalesce(row, OPPORTUNITY_ALIASES["languages"])),
+        "amount_volunteers": to_int(
             _coalesce(row, OPPORTUNITY_ALIASES["amount_volunteers"])
         ),
-        "schedule": _to_dict(_coalesce(row, OPPORTUNITY_ALIASES["schedule"])),
-        "hours_week": _to_int(
+        "schedule": to_dict(_coalesce(row, OPPORTUNITY_ALIASES["schedule"])),
+        "hours_week": to_int(
             _coalesce(row, OPPORTUNITY_ALIASES["hours_week"])
         ),
-        "recurring": _to_bool(
-            _coalesce(row, OPPORTUNITY_ALIASES["recurring"])
-        ),
-        "zip_code": _to_int(_coalesce(row, OPPORTUNITY_ALIASES["zip_code"])),
+        "recurring": to_bool(_coalesce(row, OPPORTUNITY_ALIASES["recurring"])),
+        "zip_code": to_int(_coalesce(row, OPPORTUNITY_ALIASES["zip_code"])),
         "city": _coalesce(row, OPPORTUNITY_ALIASES["city"]),
         "email": _coalesce(row, OPPORTUNITY_ALIASES["email"]),
         "embedding": _coalesce(row, OPPORTUNITY_ALIASES["embedding"]),
@@ -213,3 +225,11 @@ def safe_get_all_opportunities(client: Any) -> list[dict[str, Any]]:
         return result.data or []
     except Exception:
         return []
+
+
+def normalize_update_field(field: str) -> str | None:
+    lower = field.strip().lower()
+    for canonical, aliases in UPDATE_FIELD_ALIASES.items():
+        if lower == canonical or lower in aliases:
+            return canonical
+    return None
