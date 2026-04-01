@@ -32,44 +32,55 @@ from aux import get_secret
 
 class VolunteerProfile(BaseModel):
     # Class describing a volunteer profile
-    city: str = Field(description="City of the user")
-    name: str = Field(description="Name of the user")
-    zip_code: int = Field(description="Zip code of the user")
-    availability: dict[str, str] = Field(
+    city: str | None = Field(default=None, description="City of the user")
+    name: str | None = Field(default=None, description="Name of the user")
+    zip_code: int | str | None = Field(
+        default=None, description="Zip code of the user"
+    )
+    availability: dict[str, str] | str | None = Field(
         default_factory=dict,
         description=(
             "Availability by weekday and time range, e.g. {'Monday': '10-13'}"
         ),
     )
-    skills: list[str] = Field(
+    skills: list[str] | str | None = Field(
         default_factory=list,
         description=(
             "List of skills the user has, e.g. ['Cooking', 'Cleaning']"
         ),
     )
-    languages: list[str] = Field(
+    languages: list[str] | str | None = Field(
         default_factory=list,
         description=(
             "List of languages the user can speak, e.g. ['English', 'German']"
         ),
     )
-    h_week: int = Field(
+    h_week: int | str | None = Field(
+        default=None,
         description=(
             "Number of hours the user is available/wants to commit per week"
-        )
+        ),
     )
-    start_date: date = Field(description="Start date in YYYY-MM-DD format")
-    end_date: date = Field(description="End date in YYYY-MM-DD format")
-    recurring: bool = Field(
-        description="Whether recurring opportunities are preferred"
+    start_date: date | str | None = Field(
+        default=None, description="Start date in YYYY-MM-DD format"
     )
-    preference: str = Field(
+    end_date: date | str | None = Field(
+        default=None, description="End date in YYYY-MM-DD format"
+    )
+    recurring: bool | str | None = Field(
+        default=None,
+        description="Whether recurring opportunities are preferred",
+    )
+    preference: str | None = Field(
+        default=None,
         description="""Use this field as a kind of search term and summary of
          what the user is looking for at the moment. It will be used to create
-         an embedding for the user's profile."""
+         an embedding for the user's profile.""",
     )
     preference_embedding: list[float] | None = Field(default=None)
-    contact: str = Field(description="Contact detail (email or phone)")
+    contact: str | None = Field(
+        default=None, description="Contact detail (email or phone)"
+    )
 
 
 class OpportunityInput(BaseModel):
@@ -291,6 +302,126 @@ def _compact(payload: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in payload.items() if v is not None}
 
 
+REQUIRED_PROFILE_FIELDS: tuple[str, ...] = (
+    "name",
+    "contact",
+    "city",
+    "zip_code",
+    "h_week",
+    "start_date",
+    "end_date",
+    "recurring",
+    "preference",
+    "skills",
+    "languages",
+    "availability",
+)
+
+
+def _is_missing_profile_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    if isinstance(value, (list, dict)) and len(value) == 0:
+        return True
+    return False
+
+
+def _parse_date_value(value: date | str | None) -> tuple[date | None, bool]:
+    if value is None:
+        return None, False
+    if isinstance(value, date):
+        return value, False
+
+    text = str(value).strip()
+    if not text:
+        return None, False
+    try:
+        return date.fromisoformat(text), False
+    except ValueError:
+        return None, True
+
+
+def _normalize_profile_for_creation(
+    profile: VolunteerProfile,
+) -> tuple[dict[str, Any], list[str], list[str]]:
+    missing_fields: list[str] = []
+    validation_errors: list[str] = []
+    normalized: dict[str, Any] = {}
+
+    for text_field in ("name", "contact", "city", "preference"):
+        raw = getattr(profile, text_field, None)
+        value = str(raw).strip() if raw is not None else None
+        normalized[text_field] = value if value else None
+        if _is_missing_profile_value(normalized[text_field]):
+            missing_fields.append(text_field)
+
+    zip_code = to_int(profile.zip_code)
+    normalized["zip_code"] = zip_code
+    if zip_code is None:
+        if _is_missing_profile_value(profile.zip_code):
+            missing_fields.append("zip_code")
+        else:
+            validation_errors.append("zip_code must be a valid number.")
+    elif zip_code <= 0:
+        validation_errors.append("zip_code must be a positive number.")
+
+    h_week = to_int(profile.h_week)
+    normalized["h_week"] = h_week
+    if h_week is None:
+        if _is_missing_profile_value(profile.h_week):
+            missing_fields.append("h_week")
+        else:
+            validation_errors.append("h_week must be a valid number.")
+    elif h_week <= 0:
+        validation_errors.append("h_week must be a positive number.")
+
+    recurring = to_bool(profile.recurring)
+    normalized["recurring"] = recurring
+    if recurring is None:
+        if _is_missing_profile_value(profile.recurring):
+            missing_fields.append("recurring")
+        else:
+            validation_errors.append(
+                "recurring must be true/false (or yes/no)."
+            )
+
+    start_date, start_invalid = _parse_date_value(profile.start_date)
+    end_date, end_invalid = _parse_date_value(profile.end_date)
+    normalized["start_date"] = start_date
+    normalized["end_date"] = end_date
+
+    if start_date is None:
+        if _is_missing_profile_value(profile.start_date):
+            missing_fields.append("start_date")
+        elif start_invalid:
+            validation_errors.append("start_date must use YYYY-MM-DD format.")
+    if end_date is None:
+        if _is_missing_profile_value(profile.end_date):
+            missing_fields.append("end_date")
+        elif end_invalid:
+            validation_errors.append("end_date must use YYYY-MM-DD format.")
+
+    if (
+        start_date is not None
+        and end_date is not None
+        and end_date < start_date
+    ):
+        validation_errors.append("end_date must be on or after start_date.")
+
+    normalized["availability"] = to_dict(profile.availability)
+    normalized["skills"] = to_list(profile.skills)
+    normalized["languages"] = to_list(profile.languages)
+
+    # Keep required field list in one place and ensure deterministic ordering.
+    missing_fields = [
+        field for field in REQUIRED_PROFILE_FIELDS if field in missing_fields
+    ]
+
+    return normalized, missing_fields, validation_errors
+
+
 @tool
 def create_volunteer_profile(
     runtime: ToolRuntime[Context], profile: VolunteerProfile
@@ -307,26 +438,46 @@ def create_volunteer_profile(
     if existing is not None:
         return "A profile already exists for this account. Use update instead."
 
-    embedding = maybe_create_embedding(profile.preference)
+    normalized_profile, missing_fields, validation_errors = (
+        _normalize_profile_for_creation(profile)
+    )
+    if missing_fields or validation_errors:
+        parts: list[str] = []
+        if missing_fields:
+            parts.append(
+                "Missing required fields: " + ", ".join(missing_fields) + "."
+            )
+        if validation_errors:
+            parts.append("Validation issues: " + " ".join(validation_errors))
+        parts.append(
+            "Do not call create_volunteer_profile again yet. Ask the user for "
+            "the next missing field and call this tool only after all required "
+            "fields are complete and confirmed."
+        )
+        return " ".join(parts)
+
+    embedding = maybe_create_embedding(
+        str(normalized_profile.get("preference") or "")
+    )
     payload = _compact(
         {
             "user_id": runtime.context.user_id,
-            "name": profile.name,
-            "contact": profile.contact,
-            "city": profile.city,
-            "zip_code": profile.zip_code,
-            "availability": profile.availability,
-            "skills": profile.skills,
-            "languages": profile.languages,
-            "h_week": profile.h_week,
-            "start_date": profile.start_date.isoformat()
-            if profile.start_date
+            "name": normalized_profile.get("name"),
+            "contact": normalized_profile.get("contact"),
+            "city": normalized_profile.get("city"),
+            "zip_code": normalized_profile.get("zip_code"),
+            "availability": normalized_profile.get("availability"),
+            "skills": normalized_profile.get("skills"),
+            "languages": normalized_profile.get("languages"),
+            "h_week": normalized_profile.get("h_week"),
+            "start_date": normalized_profile["start_date"].isoformat()
+            if normalized_profile.get("start_date")
             else None,
-            "end_date": profile.end_date.isoformat()
-            if profile.end_date
+            "end_date": normalized_profile["end_date"].isoformat()
+            if normalized_profile.get("end_date")
             else None,
-            "recurring": profile.recurring,
-            "preference": profile.preference,
+            "recurring": normalized_profile.get("recurring"),
+            "preference": normalized_profile.get("preference"),
             "preference_embedding": embedding,
         }
     )
