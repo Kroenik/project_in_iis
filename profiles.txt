@@ -1,0 +1,240 @@
+[
+  {
+    "id": 2,
+    "created_at": "2026-01-24 10:15:00.000000+00",
+    "user_id": 2,
+    "city_text": "Linz",
+    "zip_int": 4020,
+    "radius_int": 15,
+    "availability_json": {
+      "Montag": "17-20",
+      "Mittwoch": "17-20"
+    },
+    "skills_json": [
+      "Kommunikation",
+      "Teamarbeit",
+      "Organisation",
+      "Kundenumgang",
+      "Zuverlässigkeit"
+    ],
+    "languages_text": ["Deutsch", "Englisch"],
+    "h_week_int": 4,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Kommunikative Person aus Linz (4020) mit 15 km Radius, verfügbar am Montag und Mittwoch abends, stark in Teamarbeit, Organisation und Kundenumgang, Deutsch- und Englischkenntnisse (ca. 4 Std./Woche)."
+  },
+  {
+    "id": 3,
+    "created_at": "2026-01-24 10:15:10.000000+00",
+    "user_id": 3,
+    "city_text": "Leonding",
+    "zip_int": 4060,
+    "radius_int": 25,
+    "availability_json": {
+      "Dienstag": "16-19",
+      "Donnerstag": "16-19"
+    },
+    "skills_json": [
+      "Umgang mit Kindern",
+      "Vorlesen",
+      "Geduld",
+      "Empathie",
+      "Kreativität"
+    ],
+    "languages_text": ["Deutsch"],
+    "h_week_int": 6,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Geduldige, kreative Person aus Leonding (4060) mit 25 km Radius, verfügbar Dienstag und Donnerstag nachmittags, mit Freude am Vorlesen und Erfahrung im Umgang mit Kindern, Deutschkenntnisse (ca. 6 Std./Woche)."
+  },
+  {
+    "id": 4,
+    "created_at": "2026-01-24 10:15:20.000000+00",
+    "user_id": 4,
+    "city_text": "Traun",
+    "zip_int": 4050,
+    "radius_int": 20,
+    "availability_json": {
+      "Freitag": "14-18"
+    },
+    "skills_json": [
+      "Physische Arbeit",
+      "Anpacken",
+      "Logistik",
+      "Sorgfalt",
+      "Teamfähigkeit"
+    ],
+    "languages_text": ["Deutsch", "Bosnisch/Kroatisch/Serbisch"],
+    "h_week_int": 4,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Tatkräftige Person aus Traun (4050) mit 20 km Radius, verfügbar freitagnachmittags, mit Stärken in Logistik, körperlicher Arbeit und sorgfältigem Arbeiten, Deutsch und BKS (ca. 4 Std./Woche)."
+  },
+  {
+    "id": 5,
+    "created_at": "2026-01-24 10:15:30.000000+00",
+    "user_id": 5,
+    "city_text": "Steyregg",
+    "zip_int": 4221,
+    "radius_int": 30,
+    "availability_json": {
+      "Samstag": "9-13",
+      "Sonntag": "9-13"
+    },
+    "skills_json": [
+      "Tierliebe",
+      "Verantwortungsbewusstsein",
+      "Geduld",
+      "Zuverlässigkeit",
+      "Spaziergänge begleiten"
+    ],
+    "languages_text": ["Deutsch", "Englisch"],
+    "h_week_int": 6,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Zuverlässige, tierliebe Person aus Steyregg (4221) mit 30 km Radius, verfügbar am Wochenende vormittags, verantwortungsbewusst und geduldig, Deutsch- und Englischkenntnisse (ca. 6 Std./Woche)."
+  },
+  {
+    "id": 6,
+    "created_at": "2026-01-24 10:15:40.000000+00",
+    "user_id": 6,
+    "city_text": "Ansfelden",
+    "zip_int": 4052,
+    "radius_int": 20,
+    "availability_json": {
+      "Montag": "8-12",
+      "Dienstag": "8-12",
+      "Mittwoch": "8-12"
+    },
+    "skills_json": [
+      "Küchenhilfe",
+      "Hygienebewusstsein",
+      "Teamarbeit",
+      "Zuverlässigkeit",
+      "Freundlichkeit"
+    ],
+    "languages_text": ["Deutsch"],
+    "h_week_int": 8,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Freundliche, zuverlässige Person aus Ansfelden (4052) mit 20 km Radius, verfügbar Montag bis Mittwoch vormittags, mit Hygienebewusstsein und Erfahrung als Küchenhilfe, Deutschkenntnisse (ca. 8 Std./Woche)."
+  },
+  {
+    "id": 7,
+    "created_at": "2026-01-24 10:15:50.000000+00",
+    "user_id": 7,
+    "city_text": "Linz",
+    "zip_int": 4030,
+    "radius_int": 10,
+    "availability_json": {
+      "Donnerstag": "18-21"
+    },
+    "skills_json": [
+      "IT",
+      "Computer",
+      "Support",
+      "Erklären können",
+      "Geduld"
+    ],
+    "languages_text": ["Deutsch", "Englisch"],
+    "h_week_int": 3,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Technikaffine Person aus Linz (4030) mit 10 km Radius, verfügbar donnerstagabends, mit IT-/Computerkenntnissen und Freude daran, anderen geduldig zu helfen (Support/Erklären), Deutsch und Englisch (ca. 3 Std./Woche)."
+  },
+  {
+    "id": 8,
+    "created_at": "2026-01-24 10:16:00.000000+00",
+    "user_id": 8,
+    "city_text": "Pasching",
+    "zip_int": 4061,
+    "radius_int": 25,
+    "availability_json": {
+      "Dienstag": "18-20",
+      "Freitag": "18-20"
+    },
+    "skills_json": [
+      "Moderation",
+      "Kommunikation",
+      "Interkulturelle Kompetenz",
+      "Empathie",
+      "Organisation"
+    ],
+    "languages_text": ["Deutsch", "Englisch", "Türkisch"],
+    "h_week_int": 4,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Kommunikative Person aus Pasching (4061) mit 25 km Radius, verfügbar Dienstag und Freitag abends, mit Moderations- und Organisationsstärke sowie interkultureller Kompetenz, spricht Deutsch, Englisch und Türkisch (ca. 4 Std./Woche)."
+  },
+  {
+    "id": 9,
+    "created_at": "2026-01-24 10:16:10.000000+00",
+    "user_id": 9,
+    "city_text": "Linz",
+    "zip_int": 4040,
+    "radius_int": 30,
+    "availability_json": {
+      "Samstag": "14-18"
+    },
+    "skills_json": [
+      "Eventhilfe",
+      "Kundenumgang",
+      "Zuverlässigkeit",
+      "Ticketing",
+      "Stressresistenz"
+    ],
+    "languages_text": ["Deutsch", "Englisch"],
+    "h_week_int": 4,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Zuverlässige Person aus Linz (4040) mit 30 km Radius, verfügbar samstagnachmittags, geeignet für Eventhilfe (Einlass/Ticketing), kundenorientiert und stressresistent, Deutsch und Englisch (ca. 4 Std./Woche)."
+  },
+  {
+    "id": 10,
+    "created_at": "2026-01-24 10:16:20.000000+00",
+    "user_id": 10,
+    "city_text": "Puchenau",
+    "zip_int": 4048,
+    "radius_int": 20,
+    "availability_json": {
+      "Mittwoch": "9-12",
+      "Donnerstag": "9-12"
+    },
+    "skills_json": [
+      "Fahrdienst",
+      "Organisation",
+      "Sorgfalt",
+      "Freundlichkeit",
+      "Verantwortungsbewusstsein"
+    ],
+    "languages_text": ["Deutsch"],
+    "h_week_int": 6,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Verantwortungsbewusste Person aus Puchenau (4048) mit 20 km Radius, verfügbar Mittwoch und Donnerstag vormittags, organisiert und freundlich, geeignet für Fahr- und Botendienste, Deutschkenntnisse (ca. 6 Std./Woche)."
+  },
+  {
+    "id": 11,
+    "created_at": "2026-01-24 10:16:30.000000+00",
+    "user_id": 11,
+    "city_text": "Linz",
+    "zip_int": 4020,
+    "radius_int": 5,
+    "availability_json": {
+      "Montag": "10-12",
+      "Freitag": "10-12"
+    },
+    "skills_json": [
+      "Empathie",
+      "Zuhören",
+      "Gespräche führen",
+      "Geduld",
+      "Zuverlässigkeit"
+    ],
+    "languages_text": ["Deutsch"],
+    "h_week_int": 4,
+    "start_date": null,
+    "end_date": null,
+    "preference_text": "Einfühlsame Person aus Linz (4020) mit kleinem Radius (5 km), verfügbar Montag und Freitag vormittags, stark im Zuhören und in Gesprächen, zuverlässig und geduldig, Deutschkenntnisse (ca. 4 Std./Woche)."
+  }
+]
