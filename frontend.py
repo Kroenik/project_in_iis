@@ -112,7 +112,7 @@ def _load_agent(openai_api_key: str) -> CompiledStateGraph:
         return existing_runtime["agent"]
 
     model = ChatOpenAI(
-        model="gpt-4o-mini",
+        model="gpt-5.4-mini",
         temperature=0.3,
         timeout=15,
         max_tokens=1000,
