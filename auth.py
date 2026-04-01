@@ -41,7 +41,9 @@ def _render_login_form(client: Client) -> None:
             st.success("Signed in successfully.")
             st.rerun()
         except Exception:
-            st.error("Sign in failed. Please check your email and password.")
+            st.error(
+                "Sign in failed. Please try again by clicking the sign in button."
+            )
 
 
 def _render_signup_form(client: Client) -> None:
@@ -63,7 +65,7 @@ def _render_signup_form(client: Client) -> None:
         if not email or not password:
             st.warning("Please enter an email and password.")
             return
-        if len(password) < 1:
+        if len(password) < 8:
             st.warning("Please use a password with at least 8 characters.")
             return
         if password != password_confirm:
@@ -71,9 +73,7 @@ def _render_signup_form(client: Client) -> None:
             return
         try:
             client.auth.sign_up({"email": email.strip(), "password": password})
-            st.success(
-                "Account created. Please check your email for confirmation, then sign in."
-            )
+            st.success("Account created, you may now sign in.")
         except Exception as e:
             print(e)
             st.error("Account creation failed. Please try again.")

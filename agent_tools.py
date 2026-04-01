@@ -97,6 +97,7 @@ class OpportunityInput(BaseModel):
 @tool
 def get_volunteer_information(runtime: ToolRuntime[Context]):
     """Retrieve the currently logged-in volunteer prfile. Use once at start"""
+    print("Calling get_volunteer_information")
     profile_row = safe_profile_lookup(
         runtime.context.supabase, runtime.context.user_id
     )
@@ -212,6 +213,7 @@ def update_volunteer_profile(
 ) -> str:
     """Update one profile field. Use operation='add'
     for skills/languages additions."""
+    print(f"Updating volunteer profile: {field} {value} {operation}")
     canonical_field = normalize_update_field(field)
     if canonical_field is None:
         valid = ", ".join(sorted(UPDATE_FIELD_ALIASES))
@@ -293,7 +295,12 @@ def _compact(payload: dict[str, Any]) -> dict[str, Any]:
 def create_volunteer_profile(
     runtime: ToolRuntime[Context], profile: VolunteerProfile
 ) -> str:
-    """Create a new volunteer profile for the logged-in useer"""
+    """Create a new volunteer profile for the logged-in user.
+
+    Call this only after all required profile fields are collected and
+    confirmed by the user.
+    """
+    print(f"Calling create_volunteer_profile")
     existing = safe_profile_lookup(
         runtime.context.supabase, runtime.context.user_id
     )
@@ -339,6 +346,7 @@ def create_volunteer_opportunity(
     runtime: ToolRuntime[Context], opportunity: OpportunityInput
 ) -> str:
     """Create a new volunteering opportunity (for NGO/coordinator workflows)."""
+    print(f"Calling create_volunteer_opportunity")
     embedding_text = " ".join(
         [
             opportunity.organization,
@@ -400,6 +408,7 @@ class SkillMappingResult(BaseModel):
 def map_skills_to_taxonomy(skills: list[str]) -> list[MappedSkill]:
     """Map free-text skills to taxonomy labels
     for robust downstream matching."""
+    print("Calling map_skills_to_taxonomy")
     print(f"Mapping skills to taxonomy: {skills}")
     with open("cleaned_list.json", "r") as f:
         taxonomy = json.load(f)["items"]

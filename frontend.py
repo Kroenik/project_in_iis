@@ -103,12 +103,20 @@ def _get_supabase_client(secrets: dict[str, str]) -> Client:
 
 
 def _load_agent(openai_api_key: str) -> CompiledStateGraph:
+    existing_runtime = st.session_state.get("agent_runtime")
+    if (
+        isinstance(existing_runtime, dict)
+        and existing_runtime.get("openai_api_key") == openai_api_key
+        and existing_runtime.get("agent") is not None
+    ):
+        return existing_runtime["agent"]
+
     model = ChatOpenAI(
         model="gpt-4o-mini",
         temperature=0.3,
-        timeout=30,
+        timeout=15,
         max_tokens=1000,
-        max_retries=3,
+        max_retries=1,
         api_key=openai_api_key,
     )
     checkpointer = InMemorySaver()
@@ -117,6 +125,7 @@ def _load_agent(openai_api_key: str) -> CompiledStateGraph:
             model=model, checkpointer=checkpointer, context=Context
         ),
         "checkpointer": checkpointer,
+        "openai_api_key": openai_api_key,
     }
     return st.session_state.agent_runtime["agent"]
 
@@ -193,6 +202,7 @@ def _handle_prompt(
             config=config,
         )
         st.markdown(response)
+        _append_message(role="assistant", content=response)
 
 
 def run_app() -> None:
@@ -212,7 +222,10 @@ def run_app() -> None:
     context = Context(
         user_id=st.session_state.user.id, supabase=supabase_client
     )
-    config = {"configurable": {"thread_id": st.session_state.user.id}}
+    config = {
+        "configurable": {"thread_id": st.session_state.user.id},
+        "recursion_limit": 8,
+    }
     agent = _load_agent(secrets["OPENAI_API_KEY"])
     _display_message_history()
 
