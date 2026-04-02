@@ -1,3 +1,5 @@
+import json
+import math
 import re
 from typing import Any
 
@@ -43,6 +45,57 @@ def _hour_overlap(a: tuple[int, int], b: tuple[int, int]) -> int:
 
 def _tokenize(text: str) -> set[str]:
     return set(re.findall(r"[a-zA-ZäöüÄÖÜß]{3,}", text.lower()))
+
+
+def _parse_embedding(value: Any) -> list[float] | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        if stripped.startswith("[") and stripped.endswith("]"):
+            try:
+                value = json.loads(stripped)
+            except json.JSONDecodeError:
+                return None
+        else:
+            return None
+
+    if not isinstance(value, list):
+        return None
+
+    parsed: list[float] = []
+    for item in value:
+        try:
+            parsed.append(float(item))
+        except (TypeError, ValueError):
+            return None
+    return parsed if parsed else None
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float | None:
+    if not a or not b or len(a) != len(b):
+        return None
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return None
+    dot = sum(x * y for x, y in zip(a, b))
+    return dot / (norm_a * norm_b)
+
+
+def _embedding_score(
+    profile: dict[str, Any], opportunity: dict[str, Any]
+) -> float | None:
+    user_embedding = _parse_embedding(profile.get("preference_embedding"))
+    opportunity_embedding = _parse_embedding(opportunity.get("embedding"))
+    if user_embedding is None or opportunity_embedding is None:
+        return None
+    similarity = _cosine_similarity(user_embedding, opportunity_embedding)
+    if similarity is None:
+        return None
+    return max(0.0, min(1.0, similarity))
 
 
 def _zip_score(user_zip: int | None, opp_zip: int | None) -> float:
@@ -172,15 +225,29 @@ def score_opportunity(
         opportunity.get("zip_code"),
     )
     recurring_score = _recurring_score(profile, opportunity)
+    embedding_score = _embedding_score(profile, opportunity)
 
-    score += skill_score * 0.35
-    score += keyword_score * 0.25
-    score += availability_score * 0.25
-    score += location_score * 0.10
-    score += recurring_score * 0.05
+    if embedding_score is None:
+        score += skill_score * 0.35
+        score += keyword_score * 0.25
+        score += availability_score * 0.25
+        score += location_score * 0.10
+        score += recurring_score * 0.05
+    else:
+        # If both embeddings exist, use semantic similarity as the primary signal.
+        score += embedding_score * 0.40
+        score += skill_score * 0.25
+        score += keyword_score * 0.15
+        score += availability_score * 0.10
+        score += location_score * 0.07
+        score += recurring_score * 0.03
 
     if skill_score > 0.2:
         reasons.append("Your skills align with this opportunity.")
+    if embedding_score is not None and embedding_score > 0.6:
+        reasons.append(
+            "The overall opportunity description is close to your preferences."
+        )
     if availability_score > 0.2:
         reasons.append("The schedule overlaps with your availability.")
     if location_score > 0.4:
